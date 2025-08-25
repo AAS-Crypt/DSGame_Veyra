@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stamina Collector
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Collect specific amount of stamina with auto-detection
 // @author       You
 // @match        https://demonicscans.org/*
@@ -11,18 +11,29 @@
 (function() {
     'use strict';
 
+
     // Wait for the page to load completely
     window.addEventListener('load', function() {
         // Load saved values or use defaults
         let targetStamina = localStorage.getItem('staminaTarget') || '80';
         let minChap = localStorage.getItem('staminaMinChap') || '1';
+        let userID = parseInt(getCookieByName('demon'));
+
+        const staminaElement = document.querySelector('.gtb-value');
+        if (!staminaElement) {
+            alert('Stamina element not found! Make sure you\'re on a page that displays stamina.');
+            return;
+        }
+        const Staminas = staminaElement.textContent.trim().split(' / ');
+        const currentStamina = parseInt(Staminas[0]);
+        const maxStamina = parseInt(Staminas[1]);
 
         // Create the UI container
         const container = document.createElement('div');
         container.id = 'stamina-container';
         container.style.position = 'fixed';
-        container.style.top = '10px';
-        container.style.right = '10px';
+        container.style.top = '100px';
+        container.style.right = '50px';
         container.style.zIndex = '9999';
         container.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
         container.style.padding = '10px';
@@ -30,7 +41,7 @@
         container.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5)';
         container.style.color = 'white';
         container.style.fontFamily = 'Arial, sans-serif';
-        container.style.minWidth = '280px';
+        container.style.maxWidth = '180px';
 
         // Create title
         const title = document.createElement('h3');
@@ -59,7 +70,7 @@
         targetInput.value = targetStamina;
         targetInput.min = '2';
         targetInput.step = '2';
-        targetInput.style.width = '100%';
+        targetInput.style.width = 'auto';
         targetInput.style.padding = '8px';
         targetInput.style.border = '1px solid #ccc';
         targetInput.style.borderRadius = '4px';
@@ -87,7 +98,7 @@
         minInput.placeholder = 'Start from chapter';
         minInput.value = minChap;
         minInput.min = '1';
-        minInput.style.width = '100%';
+        minInput.style.width = 'auto';
         minInput.style.padding = '8px';
         minInput.style.border = '1px solid #ccc';
         minInput.style.borderRadius = '4px';
@@ -122,17 +133,6 @@
         // Auto-detect button click handler
         autoDetectBtn.addEventListener('click', function() {
             try {
-                // Find stamina elements
-                const staminaElement = document.querySelector('.gtb-value');
-                if (!staminaElement) {
-                    alert('Stamina element not found! Make sure you\'re on a page that displays stamina.');
-                    return;
-                }
-
-                // Parse stamina values
-                const Staminas = staminaElement.textContent.trim().split(' / ');
-                const currentStamina = parseInt(Staminas[0]);
-                const maxStamina = parseInt(Staminas[1]);
 
                 if (isNaN(currentStamina) || isNaN(maxStamina)) {
                     alert('Could not parse stamina values!');
@@ -253,8 +253,91 @@
             }
         });
 
+
+        const fullAttack = document.createElement('button');
+        fullAttack.innerHTML = 'Using ALL STAMINA';
+        fullAttack.style.padding = '8px 12px';
+        fullAttack.style.backgroundColor = '#ff0000';
+        fullAttack.style.color = 'white';
+        fullAttack.style.border = 'none';
+        fullAttack.style.borderRadius = '4px';
+        fullAttack.style.cursor = 'pointer';
+        fullAttack.style.fontSize = '12px';
+        fullAttack.style.marginBottom = '10px';
+        fullAttack.style.width = '100%';
+        fullAttack.addEventListener('click', fullDamage);
+        container.appendChild(fullAttack);
+
+        const preciseAttack = document.createElement('button');
+        preciseAttack.innerHTML = 'Making 70K DMG';
+        preciseAttack.style.padding = '8px 12px';
+        preciseAttack.style.backgroundColor = '#990099';
+        preciseAttack.style.color = 'white';
+        preciseAttack.style.border = 'none';
+        preciseAttack.style.borderRadius = '4px';
+        preciseAttack.style.cursor = 'pointer';
+        preciseAttack.style.fontSize = '12px';
+        preciseAttack.style.marginBottom = '10px';
+        preciseAttack.style.width = '100%';
+        preciseAttack.addEventListener('click', preciseDamage);
+        container.appendChild(preciseAttack);
+
+
         // Add the container to the page
         document.body.appendChild(container);
+
+        function fullDamage(monsterIDs = 0){
+            let monsterID = document.location.href.split("id=")[1];
+            try {
+                for (let index = 0; index < currentStamina; index++) {
+                    damage(monsterID);
+                }
+            } catch (error) {
+                console.error('Error auto-detecting stamina:', error);
+                alert('Error auto-detecting stamina. Check console for details.');
+            }
+            setTimeout(function(){
+                document.location.href = document.location.href;
+            }, Math.max(1000, 1 * 100));
+        }
+
+        function preciseDamage(monsterIDs = 0) {
+            let monsterID = document.location.href.split("id=")[1];
+            try {
+                fetch('https://demonicscans.org/damage.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0'
+                }).catch(function(error) {
+                    console.error('Error : ', error);
+                }).then(response=>response.json()).then(data=>{
+                    let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g,"");
+                    let enemyHIT = Math.ceil(71000/damageINT);
+                    if (enemyHIT > maxStamina) {alert('Not enough STAMINA!');}
+                    for (let index = 0; index < enemyHIT; index++){
+                        damage(monsterID);
+                    }
+                });
+            } catch (error) {
+                console.error('Error: ', error);
+            }
+            setTimeout(function(){
+                document.location.href = document.location.href;
+            }, Math.max(1000, 1 * 100));
+        }
+
+        function damage(monsterID = 0){
+            fetch('https://demonicscans.org/damage.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0'
+            });
+
+        }
 
         function getStamina(chapID = 0) {
             fetch('https://demonicscans.org/submitcmnt.php', {
@@ -262,10 +345,24 @@
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: 'userid=73553&chapterid=' + chapID + '&commentcontent=Give%20me%20stamina!&replyto=0'
+                body: 'userid=' + userID + '&chapterid=' + chapID + '&commentcontent=Give%20me%20stamina!&replyto=0'
             }).catch(function(error) {
                 console.error('Error posting to chapter ' + chapID + ':', error);
             });
         }
     });
+
+
+    function getCookieByName(name) {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + '=')) {
+                return cookie.substring(name.length + 1);
+            }
+        }
+        return null;
+    }
+
+
 })();
