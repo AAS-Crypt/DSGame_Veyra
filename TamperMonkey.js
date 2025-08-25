@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Stamina Collector
 // @namespace    http://tampermonkey.net/
-// @version      1.2
-// @description  Collect stamina with dynamic chapter range based on current stamina
+// @version      1.3
+// @description  Collect specific amount of stamina with auto-detection
 // @author       You
 // @match        https://demonicscans.org/*
 // @grant        none
@@ -14,8 +14,8 @@
     // Wait for the page to load completely
     window.addEventListener('load', function() {
         // Load saved values or use defaults
+        let targetStamina = localStorage.getItem('staminaTarget') || '80';
         let minChap = localStorage.getItem('staminaMinChap') || '1';
-        let maxChap = localStorage.getItem('staminaMaxChap') || '10';
 
         // Create the UI container
         const container = document.createElement('div');
@@ -30,7 +30,7 @@
         container.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5)';
         container.style.color = 'white';
         container.style.fontFamily = 'Arial, sans-serif';
-        container.style.minWidth = '250px';
+        container.style.minWidth = '280px';
 
         // Create title
         const title = document.createElement('h3');
@@ -40,49 +40,67 @@
         title.style.color = '#ffdd00';
         container.appendChild(title);
 
-        // Create input fields container
-        const inputContainer = document.createElement('div');
-        inputContainer.style.marginBottom = '10px';
-        inputContainer.style.display = 'flex';
-        inputContainer.style.gap = '5px';
-        inputContainer.style.alignItems = 'center';
+        // Create target stamina input
+        const targetContainer = document.createElement('div');
+        targetContainer.style.marginBottom = '10px';
+
+        const targetLabel = document.createElement('label');
+        targetLabel.textContent = 'Stamina to Gain:';
+        targetLabel.style.display = 'block';
+        targetLabel.style.marginBottom = '5px';
+        targetLabel.style.fontWeight = 'bold';
+        targetLabel.style.color = '#ffdd00';
+        targetContainer.appendChild(targetLabel);
+
+        const targetInput = document.createElement('input');
+        targetInput.type = 'number';
+        targetInput.id = 'stamina-target';
+        targetInput.placeholder = 'Must be divisible by 2';
+        targetInput.value = targetStamina;
+        targetInput.min = '2';
+        targetInput.step = '2';
+        targetInput.style.width = '100%';
+        targetInput.style.padding = '8px';
+        targetInput.style.border = '1px solid #ccc';
+        targetInput.style.borderRadius = '4px';
+        targetInput.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+        targetInput.style.color = 'white';
+        targetContainer.appendChild(targetInput);
+
+        container.appendChild(targetContainer);
 
         // Create min chapter input
+        const minContainer = document.createElement('div');
+        minContainer.style.marginBottom = '10px';
+
+        const minLabel = document.createElement('label');
+        minLabel.textContent = 'Starting Chapter:';
+        minLabel.style.display = 'block';
+        minLabel.style.marginBottom = '5px';
+        minLabel.style.fontWeight = 'bold';
+        minLabel.style.color = '#ffdd00';
+        minContainer.appendChild(minLabel);
+
         const minInput = document.createElement('input');
         minInput.type = 'number';
         minInput.id = 'min-chapter';
-        minInput.placeholder = 'Min Chapter';
+        minInput.placeholder = 'Start from chapter';
         minInput.value = minChap;
-        minInput.style.width = '80px';
-        minInput.style.padding = '4px';
+        minInput.min = '1';
+        minInput.style.width = '100%';
+        minInput.style.padding = '8px';
         minInput.style.border = '1px solid #ccc';
-        minInput.style.borderRadius = '3px';
+        minInput.style.borderRadius = '4px';
         minInput.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
         minInput.style.color = 'white';
+        minContainer.appendChild(minInput);
 
-        // Create max chapter input
-        const maxInput = document.createElement('input');
-        maxInput.type = 'number';
-        maxInput.id = 'max-chapter';
-        maxInput.placeholder = 'Max Chapter';
-        maxInput.value = maxChap;
-        maxInput.style.width = '80px';
-        maxInput.style.padding = '4px';
-        maxInput.style.border = '1px solid #ccc';
-        maxInput.style.borderRadius = '3px';
-        maxInput.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-        maxInput.style.color = 'white';
-
-        // Add inputs to container
-        inputContainer.appendChild(minInput);
-        inputContainer.appendChild(document.createTextNode(' to '));
-        inputContainer.appendChild(maxInput);
-        container.appendChild(inputContainer);
+        container.appendChild(minContainer);
 
         // Create auto-detect button
         const autoDetectBtn = document.createElement('button');
-        autoDetectBtn.innerHTML = 'Auto-Detect from Stamina';
-        autoDetectBtn.style.padding = '6px 12px';
+        autoDetectBtn.innerHTML = 'Auto-Detect Max Possible';
+        autoDetectBtn.style.padding = '8px 12px';
         autoDetectBtn.style.backgroundColor = '#2196F3';
         autoDetectBtn.style.color = 'white';
         autoDetectBtn.style.border = 'none';
@@ -115,7 +133,7 @@
                 const Staminas = staminaElement.textContent.trim().split(' / ');
                 const currentStamina = parseInt(Staminas[0]);
                 const maxStamina = parseInt(Staminas[1]);
-                
+
                 if (isNaN(currentStamina) || isNaN(maxStamina)) {
                     alert('Could not parse stamina values!');
                     return;
@@ -123,21 +141,20 @@
 
                 // Calculate available stamina (difference)
                 const staminaDifference = maxStamina - currentStamina;
-                
-                // Calculate how many chapters we can process (2 stamina per chapter)
-                const chaptersToProcess = Math.floor(staminaDifference / 2);
-                
-                if (chaptersToProcess <= 0) {
+
+                // Round down to nearest even number
+                const maxPossibleStamina = Math.floor(staminaDifference / 2) * 2;
+
+                if (maxPossibleStamina <= 0) {
                     alert('Not enough stamina! You need at least 2 stamina to process chapters.');
                     return;
                 }
 
-                // Set the max chapter value
-                const currentMinChapter = parseInt(minInput.value) || 1;
-                maxInput.value = currentMinChapter + chaptersToProcess;
-                
-                alert(`Auto-detected: ${chaptersToProcess} chapters can be processed with ${staminaDifference} available stamina.`);
-                
+                // Set the target stamina value
+                targetInput.value = maxPossibleStamina;
+
+                alert(`Auto-detected: You can gain ${maxPossibleStamina} stamina (${maxPossibleStamina/2} chapters)`);
+
             } catch (error) {
                 console.error('Error auto-detecting stamina:', error);
                 alert('Error auto-detecting stamina. Check console for details.');
@@ -149,7 +166,7 @@
         // Create the main button
         const button = document.createElement('button');
         button.innerHTML = 'Get Stamina!';
-        button.style.padding = '8px 16px';
+        button.style.padding = '10px 16px';
         button.style.backgroundColor = '#4CAF50';
         button.style.color = 'white';
         button.style.border = 'none';
@@ -158,6 +175,7 @@
         button.style.fontSize = '14px';
         button.style.width = '100%';
         button.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+        button.style.fontWeight = 'bold';
 
         // Add hover effect
         button.style.transition = 'background-color 0.3s';
@@ -170,48 +188,70 @@
 
         // Add click handler
         button.addEventListener('click', function() {
-            const minChap = parseInt(minInput.value) || 1;
-            const maxChap = parseInt(maxInput.value) || 10;
-            
-            if (minChap >= maxChap) {
-                alert('Max chapter must be greater than min chapter!');
+            const targetStaminaValue = parseInt(targetInput.value);
+            const startChapter = parseInt(minInput.value) || 1;
+
+            // Validate input
+            if (isNaN(targetStaminaValue) || targetStaminaValue < 2) {
+                alert('Please enter a valid amount of stamina to gain (minimum 2)');
                 return;
             }
 
+            if (targetStaminaValue % 2 !== 0) {
+                alert('Stamina amount must be divisible by 2!');
+                return;
+            }
+
+            // Calculate how many chapters to process
+            const chaptersToProcess = targetStaminaValue / 2;
+            const endChapter = startChapter + chaptersToProcess;
+
             // Save values to localStorage
-            localStorage.setItem('staminaMinChap', minChap);
-            localStorage.setItem('staminaMaxChap', maxChap);
+            localStorage.setItem('staminaTarget', targetStaminaValue);
+            localStorage.setItem('staminaMinChap', endChapter);
 
             button.disabled = true;
             button.textContent = 'Processing...';
             button.style.backgroundColor = '#999';
 
             let processed = 0;
-            const total = maxChap - minChap;
+            const total = chaptersToProcess;
 
-            for (let index = minChap; index < maxChap; index++) {
+            for (let index = startChapter; index < endChapter; index++) {
                 getStamina(index);
                 processed++;
-                
+
                 // Update button text with progress
                 if (processed % 5 === 0 || processed === total) {
-                    button.textContent = 'Processing... (' + processed + '/' + total + ')';
+                    button.textContent = `Processing... (${processed}/${total})`;
                 }
             }
 
-            console.log('STAMINA GAINED (' + (2 * (maxChap - minChap)) + ') From chapters ' + minChap + ' to ' + maxChap);
-            
+            console.log(`STAMINA GAINED: ${targetStaminaValue} from chapters ${startChapter} to ${endChapter-1}`);
+
             // Re-enable button after a short delay
             setTimeout(function() {
                 button.disabled = false;
                 button.textContent = 'Get Stamina!';
                 button.style.backgroundColor = '#4CAF50';
-                alert('Stamina collection complete! Processed ' + total + ' chapters.');
-            }, 2000);
+                // localStorage.setItem('staminaMinChap', endChapter);
+                alert(`Stamina collection complete! Gained ${targetStaminaValue} stamina from ${total} chapters.`);
+            }, Math.max(2000, total * 100)); // Longer delay for more chapters
         });
 
         // Add button to container
         container.appendChild(button);
+
+        // Add validation to target input
+        targetInput.addEventListener('change', function() {
+            const value = parseInt(this.value);
+            if (!isNaN(value) && value % 2 !== 0) {
+                this.style.borderColor = '#f44336';
+                alert('Stamina amount must be divisible by 2!');
+            } else {
+                this.style.borderColor = '#ccc';
+            }
+        });
 
         // Add the container to the page
         document.body.appendChild(container);
