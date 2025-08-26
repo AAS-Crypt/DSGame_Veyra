@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stamina Collector
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  Collect specific amount of stamina with auto-detection
 // @author       You
 // @match        https://demonicscans.org/*
@@ -33,8 +33,37 @@
         '/merchant.php'
     ];
 
+
+    function updateChat() {
+        const logEl = document.getElementById("chatLog");
+        const wasNearBottom = (logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight) < 120;
+
+        if (window.XMLHttpRequest) {
+            // code for IE7+, Firefox, Chrome, Opera, Safari
+            xmlhttp=new XMLHttpRequest();
+        } else {  // code for IE6, IE5
+            xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+        }
+        xmlhttp.onreadystatechange=function() {
+            if (this.readyState==4 && this.status==200) {
+            document.getElementById("chatLog").innerHTML=this.responseText;
+            if (wasNearBottom) {
+                logEl.scrollTop = logEl.scrollHeight; // auto-scroll if user was near bottom
+                }
+            }
+        }
+        xmlhttp.open("POST","updatechat.php",true);
+        xmlhttp.send();
+    }
+
     if (allowedPaths.includes(currentPath)) {
         window.addEventListener('load', function() {
+            if (document.location.href == "https://demonicscans.org/chat.php"){
+                clearInterval(t);
+                var t=setInterval(updateChat,1000 * 2);
+            }
+
+
             // Load saved values or use defaults
             let targetStamina = localStorage.getItem('staminaTarget') || '80';
             let minChap = localStorage.getItem('staminaMinChap') || '1';
@@ -163,6 +192,18 @@
             targetInput.style.color = 'white';
             targetContainer.appendChild(targetInput);
 
+            // Add validation to target input
+            targetInput.addEventListener('change', function() {
+                const value = parseInt(this.value);
+                if (!isNaN(value) && value % 2 !== 0) {
+                    this.style.borderColor = '#f44336';
+                    alert('Stamina amount must be divisible by 2!');
+                } else {
+                    this.style.borderColor = '#ccc';
+                }
+                localStorage.setItem('staminaTarget', targetInput.value);
+            });
+            
             container.appendChild(targetContainer);
 
             // Create min chapter input
@@ -238,6 +279,7 @@
                     targetInput.value = maxPossibleStamina;
 
                     alert(`Auto-detected: You can gain ${maxPossibleStamina} stamina (${maxPossibleStamina/2} chapters)`);
+                    localStorage.setItem('staminaTarget', targetInput.value);
                 } catch (error) {
                     console.error('Error auto-detecting stamina:', error);
                     alert('Error auto-detecting stamina. Check console for details.');
@@ -397,6 +439,8 @@
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
 
+                clearComments(staminaGained);
+
                 // Update button state after processing
                 updateButtonState();
 
@@ -415,17 +459,6 @@
 
             // Add button to container
             container.appendChild(button);
-
-            // Add validation to target input
-            targetInput.addEventListener('change', function() {
-                const value = parseInt(this.value);
-                if (!isNaN(value) && value % 2 !== 0) {
-                    this.style.borderColor = '#f44336';
-                    alert('Stamina amount must be divisible by 2!');
-                } else {
-                    this.style.borderColor = '#ccc';
-                }
-            });
 
 
             const fullAttack = document.createElement('button');
@@ -492,6 +525,62 @@
 
             document.body.appendChild(container);
 
+            function clearComments(stamina){
+                for (let index = 0; index < Math.ceil(stamina/100); index++){
+                    fetch("https://demonicscans.org/mycomments.php", {
+                        "method": "POST",
+                        "headers": {
+                            "Content-Type": "application/x-www-form-urlencoded"
+                        }
+                    })
+                    .then(response => response.text())
+                    .then(htmlString => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(htmlString, 'text/html');
+
+                        const commentElements = doc.querySelectorAll('.comment');
+                        const comments = [];
+
+                        commentElements.forEach(commentElement => {
+                            const commentId = commentElement.id.replace('comment-', '');
+                            
+                            const commentTextDiv = commentElement.querySelector('div > strong + a').nextElementSibling; // This gets the next sibling after the <a> tag
+                            let commentText = '';
+
+                            const allDivs = commentElement.querySelectorAll('div');
+                            if (allDivs.length > 1) {
+                                commentText = allDivs[1].textContent.trim();
+                            }
+
+                            comments.push({
+                                id: commentId,
+                                text: commentText
+                            });
+                        });
+                        let remCount = 0;
+                        for (let index = 0; index < comments.length; index++) {
+                            let comID = comments[index].id;
+                            let comText = comments[index].text;
+                            if (comText == 'Give me stamina!'){
+                            fetch("https://demonicscans.org/deletecomment.php", {
+                                "headers": {
+                                    "content-type": "application/x-www-form-urlencoded",
+                                },
+                                "referrer": "https://demonicscans.org/mycomments.php",
+                                "body": "commentid="+comID,
+                                "method": "POST",
+                                });
+                                remCount += 1;
+                            }
+                        }
+                        console.log('Removed comments count:', remCount);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching or parsing comments:', error);
+                    });
+                }
+            }
+
             function formatNumberCompact(num) {
                 if (num >= 1000000) {
                     return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -501,48 +590,121 @@
                 return num.toString();
             }
 
-            function fullDamage(monsterIDs = 0) {
-                let monsterID = document.location.href.split("id=")[1];
-                try {
-                    for (let index = 0; index < currentStamina; index++) {
-                        damage(monsterID);
+            function fullDamage(monsterID = 0) {
+                monsterID = document.location.href.split("id=")[1];
+                if(document.getElementById('join-battle') != null) {
+                    try {
+                        fetch("https://demonicscans.org/user_join_battle.php", {
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded",
+                        },
+                        "referrer": "https://demonicscans.org/battle.php?id="+monsterID,
+                        "body": "monster_id=" + monsterID + "&user_id=" + userID,
+                        "method": "POST",
+                        }).catch(function(error) {
+                            console.error('Error : ', error);
+                        }).then(response => response.text()).then(data => {
+                            if (data.includes('You have successfully joined the battle.') ) {
+                                try {
+                                    for (let index = 0; index < currentStamina - 1; index++) {
+                                        damage(monsterID);
+                                    }
+                                    afterDamage(monsterID);
+                                } catch (error) {
+                                    console.error('Error auto-detecting stamina:', error);
+                                    alert('Error auto-detecting stamina. Check console for details.');
+                                }
+                            }
+                        });
+                        console.log("Joined the Battle");
+                    } catch (error) {
+                        console.error('Error ', error);
                     }
-                } catch (error) {
-                    console.error('Error auto-detecting stamina:', error);
-                    alert('Error auto-detecting stamina. Check console for details.');
+                } else {
+                    try {
+                        for (let index = 0; index < currentStamina - 1; index++) {
+                            damage(monsterID);
+                        }
+                        afterDamage(monsterID);
+                    } catch (error) {
+                        console.error('Error auto-detecting stamina:', error);
+                        alert('Error auto-detecting stamina. Check console for details.');
+                    }
                 }
                 setTimeout(function() {
-                    document.location.href = document.location.href;
+                    // document.location.href = document.location.href;
                 }, Math.max(1000, 1 * 100));
             }
 
-            function preciseDamage() {
-                let monsterID = document.location.href.split("id=")[1];
+            function preciseDamage(monsterID = 0) {
+                monsterID = document.location.href.split("id=")[1];
                 let damageVAL = parseInt(document.getElementById('damage-target').value);
-                try {
-                    fetch('https://demonicscans.org/damage.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
+                if(document.getElementById('join-battle') != null) {
+                    try {
+                        fetch("https://demonicscans.org/user_join_battle.php", {
+                        "headers": {
+                            "content-type": "application/x-www-form-urlencoded",
                         },
-                        body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
-                    }).catch(function(error) {
-                        console.error('Error : ', error);
-                    }).then(response => response.json()).then(data => {
-                        let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
-                        let enemyHIT = Math.ceil(damageVAL / damageINT) - 1;
-                        if (enemyHIT > maxStamina) {
-                            alert('Not enough STAMINA!');
-                        }
-                        for (let index = 0; index < enemyHIT; index++) {
-                            damage(monsterID);
-                        }
-                    });
-                } catch (error) {
-                    console.error('Error: ', error);
+                        "referrer": "https://demonicscans.org/battle.php?id="+monsterID,
+                        "body": "monster_id=" + monsterID + "&user_id=" + userID,
+                        "method": "POST",
+                        }).catch(function(error) {
+                            console.error('Error : ', error);
+                        }).then(response => response.text()).then(data => {
+                            if (data.includes('You have successfully joined the battle.') ) {
+                                fetch('https://demonicscans.org/damage.php', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded',
+                                    },
+                                    body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
+                                }).catch(function(error) {
+                                    console.error('Error : ', error);
+                                }).then(response => response.json()).then(data => {
+                                    let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
+                                    let enemyHIT = Math.ceil(damageVAL / damageINT) - 1;
+                                    console.log(enemyHIT);
+                                    if (enemyHIT > maxStamina) {
+                                        alert('Not enough STAMINA!');
+                                    }
+                                    for (let index = 0; index < enemyHIT - 1; index++) {
+                                        damage(monsterID);
+                                    }
+                                    afterDamage(monsterID);
+                                });
+                            }
+                        });
+                        console.log("Joined the Battle");
+                    } catch (error) {
+                        console.error('Error ', error);
+                    }
+                } else {
+                    try {
+                        fetch('https://demonicscans.org/damage.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            },
+                            body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
+                        }).catch(function(error) {
+                            console.error('Error : ', error);
+                        }).then(response => response.json()).then(data => {
+                            let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
+                            let enemyHIT = Math.ceil(damageVAL / damageINT) - 1;
+                            if (enemyHIT > maxStamina) {
+                                alert('Not enough STAMINA!');
+                            }
+                            for (let index = 0; index < enemyHIT-1; index++) {
+                                damage(monsterID);
+                            }
+                            afterDamage(monsterID);
+                        });
+                    } catch (error) {
+                        console.error('Error: ', error);
+                    }
                 }
                 setTimeout(function() {
-                    document.location.href = document.location.href;
+                    // document.location.href = document.location.href;
                 }, Math.max(1000, 1 * 100));
             }
 
@@ -554,6 +716,67 @@
                     },
                     body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
                 });
+            }
+
+            function afterDamage(monsterID = 0){
+                fetch('https://demonicscans.org/damage.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status.trim() === 'success') {
+                        showNotification(data.message, 'success');
+                        animateMonster();
+                        document.getElementById('hpFill').style.width = data.hp.percent + '%';
+                        document.getElementById('stamina_span').innerHTML = data.stamina;
+                        document.getElementById('hpText').innerHTML = `❤️ ${new Intl.NumberFormat().format(data.hp.value)} / 1,200,000 HP`;
+
+                        if(Intl.NumberFormat().format(data.hp.value) <= 0) {
+                            location.reload();
+                        }
+
+                        // Leaderboard + logs update
+                        document.querySelector('.leaderboard-panel').innerHTML =
+                        '<strong>📊 Attackers Leaderboard</strong>' +
+                        '<div class="lb-list">' +
+                        data.leaderboard.map((row, i) => {
+                            const av = row.PICTURE && row.PICTURE.trim()
+                            ? row.PICTURE
+                            : 'images/default_avatar.png';
+                            return `
+                            <div class="lb-row">
+                                <span class="lb-rank">#${i + 1}</span>
+                                <img class="lb-avatar" src="${av}" alt="">
+                                <span class="lb-name">
+                                <a style="color:white;" href="player.php?pid=${row.ID}">${row.USERNAME}</a>
+                                </span>
+                                <span class="lb-dmg">${new Intl.NumberFormat().format(row.DAMAGE_DEALT)} DMG</span>
+                            </div>`;
+                        }).join('') +
+                        '</div>';
+
+                        document.querySelector('.log-panel').innerHTML =
+                        '<strong>📜 Attack Log</strong><br>' +
+                        data.logs.map(row => `⚔️ ${row.USERNAME} used ${row.SKILL_NAME} for ${new Intl.NumberFormat().format(row.DAMAGE)} DMG!<br>`).join('');
+
+                        if (typeof data.xp_delta === 'number') {
+                        addExpUI(data.xp_delta);
+                        } else {
+                            addExpUI(10);
+                        }
+                    } else {
+                        if (data.message && data.message.trim() === "Monster is already dead.") {
+                            location.reload();
+                        } else {
+                            // showNotification(data.message || "An error occurred.", 'error');
+                        }
+                    }
+                })
+                .catch(() => showNotification("Server error", 'error'));
             }
 
             function getStamina(chapID = 0) {
