@@ -335,10 +335,13 @@
             function startCountdown() {
                 function updateCountdown() {
                     const now = new Date();
-                    const midnight = new Date();
-                    midnight.setHours(24, 0, 0, 0); // Set to next midnight
-                    
-                    const timeLeft = midnight - now;
+                    const localOffset = now.getTimezoneOffset() * 60 * 1000;
+                    const istOffset = 5.5 * 60 * 60 * 1000;
+                    const currentIST = new Date(now.getTime() + localOffset + istOffset);
+                    const midnightIST = new Date(currentIST);
+                    midnightIST.setHours(24, 0, 0, 0);
+
+                    const timeLeft = midnightIST - currentIST;
                     
                     if (timeLeft <= 0) {
                         // Reset daily stamina at midnight
