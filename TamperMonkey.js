@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stamina Collector
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  Collect specific amount of stamina with auto-detection
 // @author       You
 // @match        https://demonicscans.org/*
@@ -39,10 +39,12 @@
             let targetStamina = localStorage.getItem('staminaTarget') || '80';
             let minChap = localStorage.getItem('staminaMinChap') || '1';
             let userID = parseInt(getCookieByName('demon'));
+            let dailyLimit = 1000;
+            if(localStorage.getItem('dailyStamina') == null){
+                localStorage.setItem('dailyStamina', 0); 
+            }
+            let dailyStamina = parseInt(localStorage.getItem('dailyStamina'));
 
-            // Check if button is blocked
-            const blockUntil = localStorage.getItem('staminaBlockUntil');
-            const isBlocked = blockUntil && new Date().getTime() < parseInt(blockUntil);
 
             const staminaElement = document.querySelector('.gtb-value');
             if (!staminaElement) {
@@ -56,9 +58,11 @@
             // Create the UI container
             const container = document.createElement('div');
             container.id = 'stamina-container';
+            const savedPosition = JSON.parse(localStorage.getItem('staminaContainerPosition') || '{"top": "100px", "right": "50px"}');
             container.style.position = 'fixed';
-            container.style.top = '100px';
-            container.style.right = '50px';
+            container.style.top = savedPosition.top;
+            container.style.left = savedPosition.left || 'calc(100% - 230px)';
+            container.style.right = 'auto';
             container.style.zIndex = '9999';
             container.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
             container.style.padding = '10px';
@@ -67,7 +71,63 @@
             container.style.color = 'white';
             container.style.fontFamily = 'Arial, sans-serif';
             container.style.maxWidth = '180px';
+            container.style.cursor = 'move'; 
 
+            let isDragging = false;
+            let dragOffsetX, dragOffsetY;
+
+            container.addEventListener('mousedown', function(e) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') {
+                    return; 
+                }
+                
+                isDragging = true;
+                const rect = container.getBoundingClientRect();
+                dragOffsetX = e.clientX - rect.left;
+                dragOffsetY = e.clientY - rect.top;
+                container.style.cursor = 'grabbing';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging) return;
+                
+                const x = e.clientX - dragOffsetX;
+                const y = e.clientY - dragOffsetY;
+                
+                // Keep within viewport bounds
+                const maxX = window.innerWidth - container.offsetWidth;
+                const maxY = window.innerHeight - container.offsetHeight;
+                
+                const boundedX = Math.max(0, Math.min(x, maxX));
+                const boundedY = Math.max(0, Math.min(y, maxY));
+                
+                container.style.top = boundedY + 'px';
+                container.style.left = boundedX + 'px';
+                container.style.right = 'auto';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (!isDragging) return;
+                
+                isDragging = false;
+                container.style.cursor = 'move';
+                
+                // Save position to localStorage
+                const rect = container.getBoundingClientRect();
+                const position = {
+                    top: container.style.top,
+                    left: container.style.left,
+                    // top: rect.top + 'px',
+                    // right: (window.innerWidth - rect.right) + 'px'
+                };
+                console.log(position);
+                console.log(JSON.stringify(position));
+                localStorage.setItem('staminaContainerPosition', JSON.stringify(position));
+            });
+
+            
             // Create title
             const title = document.createElement('h3');
             title.textContent = 'Stamina Collector';
@@ -188,29 +248,78 @@
 
             // Create the main button
             const button = document.createElement('button');
-            button.innerHTML = isBlocked ? 'Blocked for 12h' : 'Get Stamina!';
+            button.id = 'stamina-button';
+            button.innerHTML = 'Get Stamina!';
             button.style.padding = '10px 16px';
-            button.style.backgroundColor = isBlocked ? '#999' : '#4CAF50';
+            button.style.backgroundColor = '#4CAF50';
             button.style.color = 'white';
             button.style.border = 'none';
             button.style.borderRadius = '4px';
-            button.style.cursor = isBlocked ? 'not-allowed' : 'pointer';
+            button.style.cursor = 'pointer';
             button.style.fontSize = '14px';
             button.style.width = '100%';
             button.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
             button.style.fontWeight = 'bold';
-            button.disabled = isBlocked;
 
-            // Add hover effect only if not blocked
-            if (!isBlocked) {
-                button.style.transition = 'background-color 0.3s';
-                button.onmouseover = function() {
+            // Add hover effect
+            button.style.transition = 'background-color 0.3s';
+            button.onmouseover = function() {
+                if (!this.disabled) {
                     this.style.backgroundColor = '#45a049';
-                };
-                button.onmouseout = function() {
+                }
+            };
+            button.onmouseout = function() {
+                if (!this.disabled) {
                     this.style.backgroundColor = '#4CAF50';
-                };
+                }
+            };
+ 
+            // Check if daily limit is reached and update button accordingly
+            function updateButtonState() {
+                if (dailyStamina >= dailyLimit) {
+                    button.disabled = true;
+                    button.style.backgroundColor = '#999';
+                    button.style.cursor = 'not-allowed';
+                    startCountdown();
+                } else {
+                    button.disabled = false;
+                    button.style.backgroundColor = '#4CAF50';
+                    button.style.cursor = 'pointer';
+                    button.textContent = 'Get Stamina!';
+                }
             }
+
+            // Start countdown timer until midnight
+            function startCountdown() {
+                function updateCountdown() {
+                    const now = new Date();
+                    const midnight = new Date();
+                    midnight.setHours(24, 0, 0, 0); // Set to next midnight
+                    
+                    const timeLeft = midnight - now;
+                    
+                    if (timeLeft <= 0) {
+                        // Reset daily stamina at midnight
+                        dailyStamina = 0;
+                        localStorage.setItem('dailyStamina', '0');
+                        updateButtonState();
+                        return;
+                    }
+                    
+                    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                    
+                    button.innerText = `Resets in: ${hours}h ${minutes}m ${seconds}s \r\n Daily Limit Reached`;
+                    
+                    setTimeout(updateCountdown, 1000);
+                }
+                
+                updateCountdown();
+            }
+
+            // Initial button state check
+            updateButtonState();
 
             // Add click handler
             button.addEventListener('click', async function() {
@@ -228,12 +337,27 @@
                     return;
                 }
 
+                // Check if we would exceed daily limit
+                if (dailyStamina + targetStaminaValue > dailyLimit) {
+                    const remainingStamina = dailyLimit - dailyStamina;
+                    if (remainingStamina > 0) {
+                        if (!confirm(`You can only gain ${remainingStamina} more stamina today (${dailyStamina}/${dailyLimit}). Would you like to proceed with this amount?`)) {
+                            return;
+                        }
+                        // Adjust target to remaining stamina
+                        targetInput.value = Math.floor(remainingStamina / 2) * 2;
+                    } else {
+                        alert('Daily stamina limit reached! Please try again after midnight.');
+                        return;
+                    }
+                }
+
                 // Calculate how many chapters to process
                 const chaptersToProcess = targetStaminaValue / 2;
                 const endChapter = startChapter + chaptersToProcess;
 
                 // Save values to localStorage
-                localStorage.setItem('staminaTarget', targetStaminaValue);
+                localStorage.setItem('staminaTarget', targetInput.value);
                 localStorage.setItem('staminaMinChap', endChapter);
 
                 button.disabled = true;
@@ -242,14 +366,18 @@
 
                 let processed = 0;
                 const total = chaptersToProcess;
-                let maxStaminaReached = false;
+                let staminaGained = 0;
 
                 for (let index = startChapter; index < endChapter; index++) {
-                    const success = await getStamina(index);
-
-                    if (!success) {
-                        maxStaminaReached = true;
-                        break;
+                    try {
+                        const response = await getStamina(index);
+                        if (response && response.includes("You have earned +2 stamina")) {
+                            staminaGained += 2;
+                            dailyStamina += 2;
+                            localStorage.setItem('dailyStamina', dailyStamina.toString());
+                        }
+                    } catch (error) {
+                        console.error('Error processing chapter ' + index + ':', error);
                     }
 
                     processed++;
@@ -259,35 +387,30 @@
                         button.textContent = `Processing... (${processed}/${total})`;
                     }
 
+                    // Check if we hit daily limit during processing
+                    if (dailyStamina >= dailyLimit) {
+                        console.log(`Daily limit reached during processing. Processed ${processed} chapters.`);
+                        break;
+                    }
+
                     // Add a small delay between requests
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
 
-                if (maxStaminaReached) {
-                    // Block the button for 12 hours (43200000 milliseconds)
-                    const blockUntil = new Date().getTime() + 12 * 60 * 60 * 1000;
-                    localStorage.setItem('staminaBlockUntil', blockUntil.toString());
+                // Update button state after processing
+                updateButtonState();
 
-                    // Increase the min chapter for next time
-                    const newMinChapter = parseInt(minInput.value) + processed + 1;
-                    localStorage.setItem('staminaMinChap', newMinChapter.toString());
-                    minInput.value = newMinChapter;
-
-                    button.disabled = true;
-                    button.textContent = 'Blocked for 12h';
-                    button.style.backgroundColor = '#999';
-                    button.style.cursor = 'not-allowed';
-
-                    alert(`MAX_STAMINA_FARM_REACHED! Processed ${processed} chapters. Button blocked for 12 hours.`);
+                if (dailyStamina >= dailyLimit) {
+                    alert(`MAX_STAMINA_FARM_REACHED! Processed ${processed} chapters. Daily limit reached.`);
                 } else {
-                    console.log(`STAMINA GAINED: ${targetStaminaValue} from chapters ${startChapter} to ${endChapter-1}`);
-
-                    // Re-enable button
-                    button.disabled = false;
-                    button.textContent = 'Get Stamina!';
-                    button.style.backgroundColor = '#4CAF50';
-                    alert(`Stamina collection complete! Gained ${targetStaminaValue} stamina from ${total} chapters.`);
+                    console.log(`STAMINA GAINED: ${staminaGained} from chapters ${startChapter} to ${startChapter + processed - 1}`);
+                    alert(`Stamina collection complete! Gained ${staminaGained} stamina from ${processed} chapters.`);
                 }
+
+                // Increase the min chapter for next time
+                const newMinChapter = parseInt(minInput.value) + processed;
+                localStorage.setItem('staminaMinChap', newMinChapter.toString());
+                minInput.value = newMinChapter;
             });
 
             // Add button to container
@@ -304,6 +427,7 @@
                 }
             });
 
+
             const fullAttack = document.createElement('button');
             fullAttack.innerHTML = 'Using ALL STAMINA';
             fullAttack.style.padding = '8px 12px';
@@ -313,13 +437,46 @@
             fullAttack.style.borderRadius = '4px';
             fullAttack.style.cursor = 'pointer';
             fullAttack.style.fontSize = '12px';
+            fullAttack.style.marginTop = '10px';
             fullAttack.style.marginBottom = '10px';
             fullAttack.style.width = '100%';
             fullAttack.addEventListener('click', fullDamage);
             container.appendChild(fullAttack);
 
+            // Create target stamina input
+            const damageContainer = document.createElement('div');
+            targetContainer.style.marginBottom = '10px';
+
+            const damageLabel = document.createElement('label');
+            damageLabel.textContent = 'Damage to deal:';
+            damageLabel.style.display = 'block';
+            damageLabel.style.marginBottom = '5px';
+            damageLabel.style.fontWeight = 'bold';
+            damageLabel.style.color = '#ffdd00';
+            damageContainer.appendChild(damageLabel);
+
+            const damageInput = document.createElement('input');
+            damageInput.type = 'number';
+            damageInput.id = 'damage-target';
+            damageInput.value = parseInt(localStorage.getItem('lastDamage')) || 71000;
+            damageInput.min = '1000';
+            damageInput.step = '100';
+            damageInput.style.width = 'auto';
+            damageInput.style.padding = '8px';
+            damageInput.style.border = '1px solid #ccc';
+            damageInput.style.borderRadius = '4px';
+            damageInput.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+            damageInput.style.color = 'white';
+            damageInput.addEventListener('change', function(){
+                localStorage.setItem('lastDamage', this.value);
+                preciseAttack.innerHTML = 'Making ' + formatNumberCompact(this.value) + ' DMG';
+            });
+            damageContainer.appendChild(damageInput);
+
+            container.appendChild(damageContainer);
+
             const preciseAttack = document.createElement('button');
-            preciseAttack.innerHTML = 'Making 70K DMG';
+            preciseAttack.innerHTML = `Making ${formatNumberCompact(parseInt(localStorage.getItem('lastDamage')))} DMG`;
             preciseAttack.style.padding = '8px 12px';
             preciseAttack.style.backgroundColor = '#990099';
             preciseAttack.style.color = 'white';
@@ -327,12 +484,22 @@
             preciseAttack.style.borderRadius = '4px';
             preciseAttack.style.cursor = 'pointer';
             preciseAttack.style.fontSize = '12px';
+            preciseAttack.style.marginTop = '10px';
             preciseAttack.style.marginBottom = '10px';
             preciseAttack.style.width = '100%';
             preciseAttack.addEventListener('click', preciseDamage);
             container.appendChild(preciseAttack);
 
             document.body.appendChild(container);
+
+            function formatNumberCompact(num) {
+                if (num >= 1000000) {
+                    return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+                } else if (num >= 1000) {
+                    return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+                }
+                return num.toString();
+            }
 
             function fullDamage(monsterIDs = 0) {
                 let monsterID = document.location.href.split("id=")[1];
@@ -349,20 +516,21 @@
                 }, Math.max(1000, 1 * 100));
             }
 
-            function preciseDamage(monsterIDs = 0) {
+            function preciseDamage() {
                 let monsterID = document.location.href.split("id=")[1];
+                let damageVAL = parseInt(document.getElementById('damage-target').value);
                 try {
                     fetch('https://demonicscans.org/damage.php', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
-                        body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0'
+                        body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
                     }).catch(function(error) {
                         console.error('Error : ', error);
                     }).then(response => response.json()).then(data => {
                         let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
-                        let enemyHIT = Math.ceil(71000 / damageINT);
+                        let enemyHIT = Math.ceil(damageVAL / damageINT) - 1;
                         if (enemyHIT > maxStamina) {
                             alert('Not enough STAMINA!');
                         }
@@ -384,7 +552,7 @@
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0'
+                    body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
                 });
             }
 
@@ -406,17 +574,17 @@
                     // Check if the response contains the success message for stamina farming
                     if (responseText.includes("MAX_STAMINA_FARM_REACHED")) {
                         console.log("Max stamina farm reached for chapter " + chapID);
-                        return false;
-                    } else if (responseText.includes("success")) {
+                        return responseText;
+                    } else if (responseText.includes("You have earned +2 stamina")) {
                         console.log("Stamina successfully farmed for chapter " + chapID);
-                        return true;
+                        return responseText;
                     }
                     console.log("Unexpected response: " + responseText);
-                    return false;
+                    return responseText;
                 })
                 .catch(error => {
                     console.error('Error posting to chapter ' + chapID + ':', error);
-                    return false;
+                    throw error;
                 });
             }
         });
