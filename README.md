@@ -36,4 +36,5 @@ This script is now installed and active.
 > If you have any issues with script or modify it you can, you just need to go to TamperMonkey and choose the script and then it's just pure JavaScript
 
 Whenever you visit any page game related it should show up like this:
+
 ![alt text](/assets/image.png)
