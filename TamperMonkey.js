@@ -1,15 +1,214 @@
 // ==UserScript==
 // @name         Stamina Collector
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  Collect specific amount of stamina with auto-detection
 // @author       You
 // @match        https://demonicscans.org/*
 // @grant        none
 // ==/UserScript==
 
+/*
+
+const lootBtn = document.getElementById('loot-button');
+if (lootBtn) {
+    lootBtn.addEventListener('click', () => {
+        fetch('loot.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'monster_id=19405&user_id=73553'
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const lootContainer = document.getElementById('lootItems');
+                lootContainer.innerHTML = '';
+
+                data.items.forEach(item => {
+                    const div = document.createElement('div');
+                    div.style = 'background:#1e1e2f; border-radius:8px; padding:10px; text-align:center; width:80px;';
+                    div.innerHTML = `
+                        <img src="${item.IMAGE_URL}" alt="${item.NAME}" style="width:64px; height:64px;"><br>
+                        <small>${item.NAME}</small>
+                    `;
+                    lootContainer.appendChild(div);
+                });
+
+                document.getElementById('lootModal').style.display = 'flex';
+            } else {
+                showNotification(data.message || 'Failed to loot.', 'error');
+            }
+        })
+        .catch(() => showNotification("Server error", 'error'));
+    });
+}
+*/
+
+/*
+let monsters = [];
+fetch("https://demonicscans.org/active_wave.php?gate=3", {
+   "method": "POST",
+   "headers": {
+     "Content-Type": "application/x-www-form-urlencoded"
+   }
+ })
+ .then(response => response.text())
+ .then(html => {
+     //totalHTML = html;
+     //console.log(html.match(/comment-[0-9]+/g))
+     let parser = new DOMParser();
+     let doc = parser.parseFromString(html, 'text/html');
+     //console.log();
+     doc.querySelectorAll('img.monster-img:not(.grayscale)').forEach((el) => {
+         let monster = el.parentElement;
+         console.log(monster.querySelector(':nth-child(4)'))
+         let monsterHP = monster.querySelector(':nth-child(4)').textContent.split(' ');
+         let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
+         monsters.push({
+             id : monster.querySelector('a').href.split('id=')[1],
+             name : monster.querySelector('h3').innerText,
+             image : monster.querySelector('img').src,
+             HP_Cur : monsterHP[1],
+             HP_Max : monsterHP[3],
+             Players_Cur : (monsterPlayers || 0),
+             Players_Max : 20
+         })
+         console.log(monster);
+         //console.log(`${monster.querySelector('h3').innerText} | HP : ${monster.querySelector('div:nth-child(2)').innerText}`)
+     });
+//   const strongTagsContent = html.match(/<strong>(.*?)<\/strong>/g);
+//   const textInsideStrongTags = strongTagsContent
+//     ? strongTagsContent.map(tag => tag.replace(/<\/?strong>/g, ''))
+//     : [];
+//   console.log(textInsideStrongTags[0]);
+
+//   // Get HP fill percentage
+//   const hpFillMatch = html.match(/<div class="hp-fill" id="hpFill" style="width:(\d+)%"><\/div>/);
+//   const hpFillPercent = hpFillMatch ? hpFillMatch[1] : "0";
+
+//   // Get HP text
+//   const hpTextMatch = html.match(/<div class="hp-text" id="hpText">(.*?)<\/div>/);
+//   const hpText = hpTextMatch ? hpTextMatch[1] : "";
+
+//   console.log("HP Fill:", hpFillPercent + "%");
+//   console.log("HP Text:", hpText);
+ })
+ .catch(error => {
+   console.error('Error:', error);
+ });
+*/
+
+/*
+document.querySelectorAll('.join-btn').forEach((el) => {
+    el.removeEventListener('click', function(){});
+    if (el.innerText.includes("Loot")){
+        el.addEventListener('click', () => {
+            console.log("here");
+            fetch('loot.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'monster_id=' + el.parentElement.href.split('=')[1] + '&user_id=73553'
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    data.items.forEach(item => {
+                        const div = document.createElement('div');
+                        div.style = 'background:#1e1e2f; border-radius:8px; padding:10px; text-align:center; width:80px;';
+                        div.innerHTML = `
+                            <img src="${item.IMAGE_URL}" alt="${item.NAME}" style="width:64px; height:64px;"><br>
+                            <small>${item.NAME}</small>
+                        `;
+                        alert(div);
+                    });
+            console.log("succ");
+                } else {
+            console.log("fail");
+                    showNotification(data.message || 'Failed to loot.', 'error');
+                }
+            })
+            .catch(() => showNotification("Server error", 'error'));
+        });
+    } else if (el.innerText.includes("Join the Battle")) {
+        el.addEventListener('click', () => {
+            document.location.href = el.parentElement.href;
+        });
+    }
+});
+
+*/
+
+
 (function() {
     'use strict';
+
+
+    function getCookieByName(name) {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + '=')) {
+                return cookie.substring(name.length + 1);
+            }
+        }
+        return null;
+    }
+
+    // Load saved values or use defaults
+    let targetStamina = localStorage.getItem('staminaTarget') || '80';
+    let minChap = localStorage.getItem('staminaMinChap') || '1';
+    let userID = parseInt(getCookieByName('demon'));
+    let dailyLimit = 1000;
+    if(localStorage.getItem('dailyStamina') == null){
+        localStorage.setItem('dailyStamina', 0);
+    }
+    if(localStorage.getItem('enemy-targets') == null){
+        localStorage.setItem('enemy-targets', 'false,false,false,false,false')
+    }
+    let tempArray = localStorage.getItem('enemy-targets');
+
+    let dailyStamina = parseInt(localStorage.getItem('dailyStamina'));
+    let reactID = getCookieByName('useruid');
+
+    const staminaElement = document.querySelector('.gtb-value');
+    if (!staminaElement) {
+        alert('Stamina element not found! Make sure you\'re on a page that displays stamina.');
+        return;
+    }
+    const Staminas = staminaElement.textContent.trim().split(' / ');
+    const currentStamina = parseInt(Staminas[0]);
+    const maxStamina = parseInt(Staminas[1]);
+    var t; // Timer/Interval ID
+
+    const enemies = ['Goblin Slinger', 'Goblin Skirmisher', 'Orc Grunt', 'Orc Bonecrusher', 'Hobgoblin Spearman'];
+
+    function getEnemyStatus(targetName) {
+        const booleanValues = tempArray.split(',').map(val => val.toLowerCase() === 'true');
+        const index = enemies.indexOf(targetName);
+        if (index === -1) {
+            return null;
+        }
+        return booleanValues[index];
+    }
+
+
+    function setEnemyStatusToFalse(targetName) {
+        const index = enemies.indexOf(targetName);
+        if (index === -1) {
+            return null;
+        }
+
+        // Split, modify, and update
+        tempArray = tempArray.split(',');
+        tempArray[index] = 'false';
+        document.getElementById('enemy-target-'+index).checked = false;
+        tempArray = tempArray.join(',');
+
+        // Save to localStorage
+        localStorage.setItem('enemy-targets', tempArray);
+
+        return tempArray;
+    }
 
     let url = document.location.href;
     const currentUrl = new URL(url);
@@ -37,53 +236,35 @@
     function updateChat() {
         const logEl = document.getElementById("chatLog");
         const wasNearBottom = (logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight) < 120;
-
+        let xmlhttp;
         if (window.XMLHttpRequest) {
             // code for IE7+, Firefox, Chrome, Opera, Safari
             xmlhttp=new XMLHttpRequest();
-        } else {  // code for IE6, IE5
+        } else {
+            // code for IE6, IE5
             xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
         }
         xmlhttp.onreadystatechange=function() {
             if (this.readyState==4 && this.status==200) {
-            document.getElementById("chatLog").innerHTML=this.responseText;
-            if (wasNearBottom) {
-                logEl.scrollTop = logEl.scrollHeight; // auto-scroll if user was near bottom
+                document.getElementById("chatLog").innerHTML=this.responseText;
+                if (wasNearBottom) {
+                    logEl.scrollTop = logEl.scrollHeight; // auto-scroll if user was near bottom
                 }
             }
         }
         xmlhttp.open("POST","updatechat.php",true);
         xmlhttp.send();
     }
-
+    //if (document.location.href.includes("https://demonicscans.org/active_wave.php") ? document.querySelector('.monster-container').innerHTML = ""; : return null
     if (allowedPaths.includes(currentPath)) {
         window.addEventListener('load', function() {
             if (document.location.href == "https://demonicscans.org/chat.php"){
                 clearInterval(t);
-                var t=setInterval(updateChat,1000 * 2);
+                t=setInterval(updateChat,1000 * 2);
+            } else if (document.location.href.includes("https://demonicscans.org/active_wave.php")){
+                renderMonsters('?gate=3')
+                t=setInterval(function(){renderMonsters('?gate=3')}, 1000 * 1);
             }
-
-
-            // Load saved values or use defaults
-            let targetStamina = localStorage.getItem('staminaTarget') || '80';
-            let minChap = localStorage.getItem('staminaMinChap') || '1';
-            let userID = parseInt(getCookieByName('demon'));
-            let dailyLimit = 1000;
-            if(localStorage.getItem('dailyStamina') == null){
-                localStorage.setItem('dailyStamina', 0); 
-            }
-            let dailyStamina = parseInt(localStorage.getItem('dailyStamina'));
-            let reactID = getCookieByName('useruid');
-
-            const staminaElement = document.querySelector('.gtb-value');
-            if (!staminaElement) {
-                alert('Stamina element not found! Make sure you\'re on a page that displays stamina.');
-                return;
-            }
-            const Staminas = staminaElement.textContent.trim().split(' / ');
-            const currentStamina = parseInt(Staminas[0]);
-            const maxStamina = parseInt(Staminas[1]);
-
             // Create the UI container
             const container = document.createElement('div');
             container.id = 'stamina-container';
@@ -93,23 +274,23 @@
             container.style.left = savedPosition.left || 'calc(100% - 230px)';
             container.style.right = 'auto';
             container.style.zIndex = '9999';
-            container.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            container.style.backgroundColor = 'rgb(167 137 202 / 80%)';
             container.style.padding = '10px';
             container.style.borderRadius = '8px';
             container.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5)';
             container.style.color = 'white';
             container.style.fontFamily = 'Arial, sans-serif';
             container.style.maxWidth = '180px';
-            container.style.cursor = 'move'; 
+            container.style.cursor = 'move';
 
             let isDragging = false;
             let dragOffsetX, dragOffsetY;
 
             container.addEventListener('mousedown', function(e) {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') {
-                    return; 
+                    return;
                 }
-                
+
                 isDragging = true;
                 const rect = container.getBoundingClientRect();
                 dragOffsetX = e.clientX - rect.left;
@@ -120,17 +301,17 @@
 
             document.addEventListener('mousemove', function(e) {
                 if (!isDragging) return;
-                
+
                 const x = e.clientX - dragOffsetX;
                 const y = e.clientY - dragOffsetY;
-                
+
                 // Keep within viewport bounds
                 const maxX = window.innerWidth - container.offsetWidth;
                 const maxY = window.innerHeight - container.offsetHeight;
-                
+
                 const boundedX = Math.max(0, Math.min(x, maxX));
                 const boundedY = Math.max(0, Math.min(y, maxY));
-                
+
                 container.style.top = boundedY + 'px';
                 container.style.left = boundedX + 'px';
                 container.style.right = 'auto';
@@ -139,10 +320,10 @@
 
             document.addEventListener('mouseup', function() {
                 if (!isDragging) return;
-                
+
                 isDragging = false;
                 container.style.cursor = 'move';
-                
+
                 // Save position to localStorage
                 const rect = container.getBoundingClientRect();
                 const position = {
@@ -156,7 +337,7 @@
                 localStorage.setItem('staminaContainerPosition', JSON.stringify(position));
             });
 
-            
+
             // Create title
             const title = document.createElement('h3');
             title.textContent = 'Stamina Collector';
@@ -203,7 +384,7 @@
                 }
                 localStorage.setItem('staminaTarget', targetInput.value);
             });
-            
+
             container.appendChild(targetContainer);
 
             // Create min chapter input
@@ -264,6 +445,7 @@
                         return;
                     }
 
+
                     // Calculate available stamina (difference)
                     const staminaDifference = maxStamina - currentStamina;
 
@@ -315,7 +497,7 @@
                     this.style.backgroundColor = '#4CAF50';
                 }
             };
- 
+
             // Check if daily limit is reached and update button accordingly
             function updateButtonState() {
                 if (dailyStamina >= dailyLimit) {
@@ -342,7 +524,7 @@
                     midnightIST.setHours(24, 0, 0, 0);
 
                     const timeLeft = midnightIST - currentIST;
-                    
+
                     if (timeLeft <= 3) {
                         // Reset daily stamina at midnight
                         dailyStamina = 0;
@@ -350,16 +532,16 @@
                         updateButtonState();
                         return;
                     }
-                    
+
                     const hours = Math.floor(timeLeft / (1000 * 60 * 60));
                     const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
                     const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-                    
+
                     button.innerText = `Resets in: ${hours}h ${minutes}m ${seconds}s \r\n Daily Limit Reached`;
-                    
+
                     setTimeout(updateCountdown, 1000);
                 }
-                
+
                 updateCountdown();
             }
 
@@ -415,7 +597,7 @@
 
 
                 let staminaDifference = maxStamina - currentStamina;
-  
+
 
                 for (let index = startChapter; index < endChapter; index++) {
                     if (staminaGained >= staminaDifference){
@@ -451,7 +633,7 @@
                     // Add a small delay between requests
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
- 
+
 
                 // Update button state after processing
                 updateButtonState();
@@ -537,6 +719,52 @@
 
             document.body.appendChild(container);
 
+            // Target Inputs and check boxes
+            // Create target stamina input
+            const markingContainer = document.createElement('div');
+            markingContainer.style.display = 'flex';
+            markingContainer.style.flexWrap = 'wrap';
+            markingContainer.style.marginTop = '10px';
+            markingContainer.style.marginBottom = '10px';
+
+
+            let boxDiv;
+            console.log(tempArray);
+            enemies.forEach(function(entity, index) {
+                boxDiv = document.createElement('div');
+                boxDiv.style.display = 'flex';
+                let markCheckBox = document.createElement('input');
+                markCheckBox.type = 'checkbox';
+                markCheckBox.id = 'enemy-target-' + index;
+                console.log(`For array ${tempArray} : ${index} with ${tempArray.split(',')[index]}`);
+                markCheckBox.checked = tempArray.split(',')[index] === 'true';
+                markCheckBox.value = tempArray.split(',')[index];
+                markCheckBox.style.padding = '8px';
+                markCheckBox.style.border = '1px solid #ccc';
+                markCheckBox.style.borderRadius = '4px';
+                markCheckBox.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                markCheckBox.style.color = 'white';
+                markCheckBox.addEventListener('change', function(e){
+                    tempArray = tempArray.split(',');
+                    tempArray[index] = e.target.checked.toString();
+                    tempArray = tempArray.join(',');
+                    localStorage.setItem('enemy-targets', tempArray);
+                });
+                boxDiv.appendChild(markCheckBox);
+
+                const markLabel = document.createElement('label');
+                markLabel.textContent = entity;
+                markLabel.style.width = 'auto';
+                markLabel.style.display = 'block';
+                markLabel.style.marginBottom = '5px';
+                markLabel.style.fontWeight = 'bold';
+                markLabel.style.color = '#ffdd00';
+                boxDiv.appendChild(markLabel);
+                markingContainer.appendChild(boxDiv);
+            })
+            container.appendChild(markingContainer);
+
+
             function formatNumberCompact(num) {
                 if (num >= 1000000) {
                     return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -551,12 +779,12 @@
                 if(document.getElementById('join-battle') != null) {
                     try {
                         fetch("https://demonicscans.org/user_join_battle.php", {
-                        "headers": {
-                            "content-type": "application/x-www-form-urlencoded",
-                        },
-                        "referrer": "https://demonicscans.org/battle.php?id="+monsterID,
-                        "body": "monster_id=" + monsterID + "&user_id=" + userID,
-                        "method": "POST",
+                            "headers": {
+                                "content-type": "application/x-www-form-urlencoded",
+                            },
+                            "referrer": "https://demonicscans.org/battle.php?id="+monsterID,
+                            "body": "monster_id=" + monsterID + "&user_id=" + userID,
+                            "method": "POST",
                         }).catch(function(error) {
                             console.error('Error : ', error);
                         }).then(response => response.text()).then(data => {
@@ -603,17 +831,19 @@
             }
 
             function preciseDamage(monsterID = 0) {
-                monsterID = document.location.href.split("id=")[1];
+                if(document.location.href.includes('battle')){
+                    monsterID = document.location.href.split("id=")[1];
+                }
                 let damageVAL = parseInt(document.getElementById('damage-target').value);
                 if(document.getElementById('join-battle') != null) {
                     try {
                         fetch("https://demonicscans.org/user_join_battle.php", {
-                        "headers": {
-                            "content-type": "application/x-www-form-urlencoded",
-                        },
-                        "referrer": "https://demonicscans.org/battle.php?id="+monsterID,
-                        "body": "monster_id=" + monsterID + "&user_id=" + userID,
-                        "method": "POST",
+                            "headers": {
+                                "content-type": "application/x-www-form-urlencoded",
+                            },
+                            "referrer": "https://demonicscans.org/battle.php?id="+monsterID,
+                            "body": "monster_id=" + monsterID + "&user_id=" + userID,
+                            "method": "POST",
                         }).catch(function(error) {
                             console.error('Error : ', error);
                         }).then(response => response.text()).then(data => {
@@ -628,15 +858,15 @@
                                     console.error('Error : ', error);
                                 }).then(response => response.json()).then(data => {
                                     let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
-                                    let enemyHIT = Math.ceil(damageVAL / damageINT) - 1;
-                                    console.log(enemyHIT);
-                                    if (enemyHIT > maxStamina) {
-                                        alert('Not enough STAMINA!');
+                                    damageVAL -= damageINT;
+                                    while (true) {
+                                        if (damageVAL <= damageINT){
+                                            console.log("Precise Damage have been dealt")
+                                            return document.location.href = document.location.href;
+                                        } else {
+                                            damageVAL -= damage(monsterID);
+                                        }
                                     }
-                                    for (let index = 0; index < enemyHIT - 1; index++) {
-                                        damage(monsterID);
-                                    }
-                                    afterDamage(monsterID);
                                 });
                             } else if (data.includes('You are already part of this battle.')) {
                                 fetch('https://demonicscans.org/damage.php', {
@@ -649,15 +879,15 @@
                                     console.error('Error : ', error);
                                 }).then(response => response.json()).then(data => {
                                     let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
-                                    let enemyHIT = Math.ceil(damageVAL / damageINT) - 1;
-                                    console.log(enemyHIT);
-                                    if (enemyHIT > maxStamina) {
-                                        alert('Not enough STAMINA!');
+                                    damageVAL -= damageINT;
+                                    while (true) {
+                                        if (damageVAL <= damageINT){
+                                            console.log("Precise Damage have been dealt")
+                                            return document.location.href = document.location.href;
+                                        } else {
+                                            damageVAL -= damage(monsterID);
+                                        }
                                     }
-                                    for (let index = 0; index < enemyHIT - 1; index++) {
-                                        damage(monsterID);
-                                    }
-                                    afterDamage(monsterID);
                                 })
                             }
                         });
@@ -677,14 +907,15 @@
                             console.error('Error : ', error);
                         }).then(response => response.json()).then(data => {
                             let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
-                            let enemyHIT = Math.ceil(damageVAL / damageINT) - 1;
-                            if (enemyHIT > maxStamina) {
-                                alert('Not enough STAMINA!');
+                            damageVAL -= damageINT;
+                            while (true) {
+                                if (damageVAL <= damageINT){
+                                    console.log("Precise Damage have been dealt")
+                                    return document.location.href = document.location.href;
+                                } else {
+                                    damageVAL -= damage(monsterID);
+                                }
                             }
-                            for (let index = 0; index < enemyHIT-1; index++) {
-                                damage(monsterID);
-                            }
-                            afterDamage(monsterID);
                         });
                     } catch (error) {
                         console.error('Error: ', error);
@@ -702,6 +933,9 @@
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
                     body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
+                }).then(res => res.json())
+                    .then(data => {
+                    return parseInt(data.message.match(/<strong>(.*?)<\/strong>/g)[0].match(/[0-9]+/g).join(''));
                 });
             }
 
@@ -713,8 +947,8 @@
                     },
                     body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
                 })
-                .then(res => res.json())
-                .then(data => {
+                    .then(res => res.json())
+                    .then(data => {
                     if (data.status.trim() === 'success') {
                         showNotification(data.message, 'success');
                         animateMonster();
@@ -728,9 +962,9 @@
 
                         // Leaderboard + logs update
                         document.querySelector('.leaderboard-panel').innerHTML =
-                        '<strong>📊 Attackers Leaderboard</strong>' +
-                        '<div class="lb-list">' +
-                        data.leaderboard.map((row, i) => {
+                            '<strong>📊 Attackers Leaderboard</strong>' +
+                            '<div class="lb-list">' +
+                            data.leaderboard.map((row, i) => {
                             const av = row.PICTURE && row.PICTURE.trim()
                             ? row.PICTURE
                             : 'images/default_avatar.png';
@@ -744,14 +978,14 @@
                                 <span class="lb-dmg">${new Intl.NumberFormat().format(row.DAMAGE_DEALT)} DMG</span>
                             </div>`;
                         }).join('') +
-                        '</div>';
+                            '</div>';
 
                         document.querySelector('.log-panel').innerHTML =
-                        '<strong>📜 Attack Log</strong><br>' +
-                        data.logs.map(row => `⚔️ ${row.USERNAME} used ${row.SKILL_NAME} for ${new Intl.NumberFormat().format(row.DAMAGE)} DMG!<br>`).join('');
+                            '<strong>📜 Attack Log</strong><br>' +
+                            data.logs.map(row => `⚔️ ${row.USERNAME} used ${row.SKILL_NAME} for ${new Intl.NumberFormat().format(row.DAMAGE)} DMG!<br>`).join('');
 
                         if (typeof data.xp_delta === 'number') {
-                        addExpUI(data.xp_delta);
+                            addExpUI(data.xp_delta);
                         } else {
                             addExpUI(10);
                         }
@@ -763,7 +997,7 @@
                         }
                     }
                 })
-                .catch(() => showNotification("Server error", 'error'));
+                    .catch(() => showNotification("Server error", 'error'));
             }
 
             function getStamina(chapID = 0) {
@@ -774,13 +1008,13 @@
                     },
                     body: 'useruid=' + reactID + '&chapterid=' + chapID + '&reaction=1'
                 })
-                .then(response => {
+                    .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     return response.text();
                 })
-                .then(responseText => {
+                    .then(responseText => {
                     // Check if the response contains the success message for stamina farming
                     if (responseText.includes("updated")) {
                         console.log("You've already reacted to this chapter :  " + chapID);
@@ -792,22 +1026,151 @@
                     console.log("Unexpected response: " + responseText);
                     return responseText;
                 })
-                .catch(error => {
+                    .catch(error => {
                     console.error('Error posting to chapter ' + chapID + ':', error);
                     throw error;
                 });
             }
-        });
 
-        function getCookieByName(name) {
-            const cookies = document.cookie.split(';');
-            for (let cookie of cookies) {
-                cookie = cookie.trim();
-                if (cookie.startsWith(name + '=')) {
-                    return cookie.substring(name.length + 1);
-                }
+
+            function renderMonsters(gateNumber = "?gate=3") {
+                let monsters = [];
+                let lootMonsters = [];
+                let activeMonsters = [];
+
+                fetch("https://demonicscans.org/active_wave.php" + gateNumber, {
+                    "method": "POST",
+                    "headers": {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    }
+                })
+                    .then(response => response.text())
+                    .then(html => {
+                    let parser = new DOMParser();
+                    let doc = parser.parseFromString(html, 'text/html');
+
+                    let allCards = Array.from(doc.querySelector('.monster-container').children);
+                    let position;
+
+                    // Process non-grayscale monsters
+                    doc.querySelectorAll('img.monster-img:not(.grayscale)').forEach((el) => {
+                        let monster = el.parentElement;
+                        let monsterHP = monster.querySelector(':nth-child(4)').textContent.split(' ');
+                        let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
+
+                        if (monster.querySelector(':nth-child(7)').innerText != "FULL") {
+                            monsters.push({
+                                id: monster.querySelector('a').href.split('id=')[1],
+                                name: monster.querySelector('h3').innerText,
+                                image: monster.querySelector('img').src,
+                                action: monster.querySelector(":nth-child(7)").innerText,
+                                HP_Cur: monsterHP[1],
+                                HP_Max: monsterHP[3],
+                                Players_Cur: (monsterPlayers || 0),
+                                Players_Max: 20
+                            });
+                            if (getEnemyStatus(monster.querySelector('h3').innerText.trim())){
+
+                                fetch('https://demonicscans.org/user_join_battle.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                    body: 'monster_id=' + monster.querySelector('a').href.split('id=')[1] + '&user_id=' + 73553,
+                                })
+                                    .then(res => res.text())
+                                    .then(data => {
+                                    preciseDamage(parseInt(monster.querySelector('a').href.split('id=')[1]));
+                                    setEnemyStatusToFalse(monster.querySelector('h3').innerText.trim());
+                                })
+                                    .catch(() => console.error("Server error"));
+
+                            }
+                        } else if (monster.querySelector(':nth-child(7)').innerText.includes("Continue the Battle")) {
+                            activeMonsters.push({
+                                id: monster.querySelector('a').href.split('id=')[1],
+                                name: monster.querySelector('h3').innerText,
+                                image: monster.querySelector('img').src,
+                                action: monster.querySelector(":nth-child(7)").innerText,
+                                HP_Cur: monsterHP[1],
+                                HP_Max: monsterHP[3],
+                                Players_Cur: (monsterPlayers || 0),
+                                Players_Max: 20
+                            });
+                        }
+                        position = allCards.indexOf(monster) + 1;
+                    });
+
+                    // Process grayscale monsters (loot monsters)
+                    doc.querySelectorAll('img.monster-img.grayscale').forEach((el) => {
+                        let monster = el.parentElement;
+                        let monsterHP = monster.querySelector(':nth-child(4)').textContent.split(' ');
+                        let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
+
+                        if (monster.querySelector(':nth-child(7)') != null){
+                            if (monster.querySelector(':nth-child(7)').innerText.includes("Loot") && position >= allCards.indexOf(monster) + 1) {
+                                /*
+                            fetch("https://demonicscans.org/loot.php", {
+                                "headers": {
+                                    "content-type": "application/x-www-form-urlencoded",
+                                },
+                                "referrer": "https://demonicscans.org/battle.php?id=" + monster.querySelector('a').href.split('id=')[1],
+                                "body": "monster_id=" + monster.querySelector('a').href.split('id=')[1] + "&user_id="+ userID,
+                                "method": "POST",
+                                "mode": "cors",
+                                "credentials": "include"
+                            });
+                            */
+                                lootMonsters.push({
+                                    id: monster.querySelector('a').href.split('id=')[1],
+                                    name: monster.querySelector('h3').innerText,
+                                    image: monster.querySelector('img').src,
+                                    action: monster.querySelector(":nth-child(7)").innerText,
+                                    HP_Cur: monsterHP[1],
+                                    HP_Max: monsterHP[3],
+                                    Players_Cur: (monsterPlayers || 0),
+                                    Players_Max: 20
+                                });
+                            }
+                        }
+                    });
+
+                    let sortedMonsters = [
+                        ...lootMonsters.sort((a, b) => a.id - b.id),
+                        ...activeMonsters.sort((a, b) => a.id - b.id),
+                        ...monsters.sort((a, b) => a.id - b.id)
+                    ];
+
+                    // return sortedMonsters;
+                    let monsterContainer = document.querySelector('.monster-container');
+                    let monstersHTML = ""
+                    sortedMonsters.forEach((el) => {
+                        let monster = el;
+                        let monsterDiv = `<div class="monster-card"> <img src="${monster.image}" class="monster-img ${(monster.action.includes('Loot')) ? 'grayscale' : '' }"alt="Monster"> <h3>${monster.name}</h3><div class="hp-bar"><div class="hp-fill" style="width:${(monster.HP_Cur == 0) ? 0 : (parseFloat(monster.HP_Cur.replaceAll(',', '')/monster.HP_Max.replaceAll(',', '')) ) * 100}%"></div></div> <div>❤️ ${monster.HP_Cur} / ${monster.HP_Max} HP</div><div>👥 Players Joined ${monster.Players_Cur}/${monster.Players_Max}</div><br> <a href="battle.php?id=${monster.id}"><button class="join-btn" ${(monster.action.includes('Continue the Battle')) ? 'style="background:#e67e22;"' : ''}>${monster.action}</button></a></div>`;
+                        monstersHTML += monsterDiv;
+                    })
+
+                    monsterContainer.innerHTML = monstersHTML;
+                    monsterContainer.querySelectorAll('.join-btn').forEach((el) => {
+                        if (el.innerText.includes("Join the Battle")) {
+                            el.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                fetch('https://demonicscans.org/user_join_battle.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                    body: 'monster_id=' + el.parentElement.href.split('=')[1] + '&user_id=' + 73553,
+                                })
+                                    .then(res => res.text())
+                                    .then(data => {
+                                    window.location.href = el.parentElement.href;
+                                })
+                                    .catch(() => console.error("Server error"));
+                            });
+                        }
+                    });
+                })
+                    .catch(error => {console.error('Error:', error);});
             }
-            return null;
-        }
+
+        });
     }
 })();
