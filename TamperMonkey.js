@@ -1,142 +1,12 @@
 // ==UserScript==
 // @name         Stamina Collector
 // @namespace    http://tampermonkey.net/
-// @version      1.10
+// @version      1.11
 // @description  Collect specific amount of stamina with auto-detection
 // @author       You
 // @match        https://demonicscans.org/*
 // @grant        none
 // ==/UserScript==
-
-/*
-
-const lootBtn = document.getElementById('loot-button');
-if (lootBtn) {
-    lootBtn.addEventListener('click', () => {
-        fetch('loot.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'monster_id=19405&user_id=73553'
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                const lootContainer = document.getElementById('lootItems');
-                lootContainer.innerHTML = '';
-
-                data.items.forEach(item => {
-                    const div = document.createElement('div');
-                    div.style = 'background:#1e1e2f; border-radius:8px; padding:10px; text-align:center; width:80px;';
-                    div.innerHTML = `
-                        <img src="${item.IMAGE_URL}" alt="${item.NAME}" style="width:64px; height:64px;"><br>
-                        <small>${item.NAME}</small>
-                    `;
-                    lootContainer.appendChild(div);
-                });
-
-                document.getElementById('lootModal').style.display = 'flex';
-            } else {
-                showNotification(data.message || 'Failed to loot.', 'error');
-            }
-        })
-        .catch(() => showNotification("Server error", 'error'));
-    });
-}
-*/
-
-/*
-let monsters = [];
-fetch("https://demonicscans.org/active_wave.php?gate=3", {
-   "method": "POST",
-   "headers": {
-     "Content-Type": "application/x-www-form-urlencoded"
-   }
- })
- .then(response => response.text())
- .then(html => {
-     //totalHTML = html;
-     //console.log(html.match(/comment-[0-9]+/g))
-     let parser = new DOMParser();
-     let doc = parser.parseFromString(html, 'text/html');
-     //console.log();
-     doc.querySelectorAll('img.monster-img:not(.grayscale)').forEach((el) => {
-         let monster = el.parentElement;
-         console.log(monster.querySelector(':nth-child(4)'))
-         let monsterHP = monster.querySelector(':nth-child(4)').textContent.split(' ');
-         let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
-         monsters.push({
-             id : monster.querySelector('a').href.split('id=')[1],
-             name : monster.querySelector('h3').innerText,
-             image : monster.querySelector('img').src,
-             HP_Cur : monsterHP[1],
-             HP_Max : monsterHP[3],
-             Players_Cur : (monsterPlayers || 0),
-             Players_Max : 20
-         })
-         console.log(monster);
-         //console.log(`${monster.querySelector('h3').innerText} | HP : ${monster.querySelector('div:nth-child(2)').innerText}`)
-     });
-//   const strongTagsContent = html.match(/<strong>(.*?)<\/strong>/g);
-//   const textInsideStrongTags = strongTagsContent
-//     ? strongTagsContent.map(tag => tag.replace(/<\/?strong>/g, ''))
-//     : [];
-//   console.log(textInsideStrongTags[0]);
-
-//   // Get HP fill percentage
-//   const hpFillMatch = html.match(/<div class="hp-fill" id="hpFill" style="width:(\d+)%"><\/div>/);
-//   const hpFillPercent = hpFillMatch ? hpFillMatch[1] : "0";
-
-//   // Get HP text
-//   const hpTextMatch = html.match(/<div class="hp-text" id="hpText">(.*?)<\/div>/);
-//   const hpText = hpTextMatch ? hpTextMatch[1] : "";
-
-//   console.log("HP Fill:", hpFillPercent + "%");
-//   console.log("HP Text:", hpText);
- })
- .catch(error => {
-   console.error('Error:', error);
- });
-*/
-
-/*
-document.querySelectorAll('.join-btn').forEach((el) => {
-    el.removeEventListener('click', function(){});
-    if (el.innerText.includes("Loot")){
-        el.addEventListener('click', () => {
-            console.log("here");
-            fetch('loot.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'monster_id=' + el.parentElement.href.split('=')[1] + '&user_id=73553'
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    data.items.forEach(item => {
-                        const div = document.createElement('div');
-                        div.style = 'background:#1e1e2f; border-radius:8px; padding:10px; text-align:center; width:80px;';
-                        div.innerHTML = `
-                            <img src="${item.IMAGE_URL}" alt="${item.NAME}" style="width:64px; height:64px;"><br>
-                            <small>${item.NAME}</small>
-                        `;
-                        alert(div);
-                    });
-            console.log("succ");
-                } else {
-            console.log("fail");
-                    showNotification(data.message || 'Failed to loot.', 'error');
-                }
-            })
-            .catch(() => showNotification("Server error", 'error'));
-        });
-    } else if (el.innerText.includes("Join the Battle")) {
-        el.addEventListener('click', () => {
-            document.location.href = el.parentElement.href;
-        });
-    }
-});
-
-*/
 
 
 (function() {
@@ -729,14 +599,12 @@ document.querySelectorAll('.join-btn').forEach((el) => {
 
 
             let boxDiv;
-            console.log(tempArray);
             enemies.forEach(function(entity, index) {
                 boxDiv = document.createElement('div');
                 boxDiv.style.display = 'flex';
                 let markCheckBox = document.createElement('input');
                 markCheckBox.type = 'checkbox';
                 markCheckBox.id = 'enemy-target-' + index;
-                console.log(`For array ${tempArray} : ${index} with ${tempArray.split(',')[index]}`);
                 markCheckBox.checked = tempArray.split(',')[index] === 'true';
                 markCheckBox.value = tempArray.split(',')[index];
                 markCheckBox.style.padding = '8px';
@@ -830,104 +698,38 @@ document.querySelectorAll('.join-btn').forEach((el) => {
                 }, Math.max(1000, 1 * 100));
             }
 
-            function preciseDamage(monsterID = 0) {
+            async function preciseDamage(monsterID = 0) {
                 if(document.location.href.includes('battle')){
                     monsterID = document.location.href.split("id=")[1];
                 }
                 let damageVAL = parseInt(document.getElementById('damage-target').value);
-                if(document.getElementById('join-battle') != null) {
-                    try {
-                        fetch("https://demonicscans.org/user_join_battle.php", {
-                            "headers": {
-                                "content-type": "application/x-www-form-urlencoded",
-                            },
-                            "referrer": "https://demonicscans.org/battle.php?id="+monsterID,
-                            "body": "monster_id=" + monsterID + "&user_id=" + userID,
-                            "method": "POST",
-                        }).catch(function(error) {
-                            console.error('Error : ', error);
-                        }).then(response => response.text()).then(data => {
-                            if (data.includes('You have successfully joined the battle.') ) {
-                                fetch('https://demonicscans.org/damage.php', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/x-www-form-urlencoded',
-                                    },
-                                    body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
-                                }).catch(function(error) {
-                                    console.error('Error : ', error);
-                                }).then(response => response.json()).then(data => {
-                                    let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
-                                    damageVAL -= damageINT;
-                                    while (damageVAL > 0 ) {
-                                        if (damageVAL <= damageINT){
-                                            console.log("Precise Damage have been dealt")
-                                            return document.location.href = document.location.href;
-                                        } else {
-                                            damageVAL -= damage(monsterID);
-                                        }
-                                    }
-                                });
-                            } else if (data.includes('You are already part of this battle.')) {
-                                fetch('https://demonicscans.org/damage.php', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/x-www-form-urlencoded',
-                                    },
-                                    body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
-                                }).catch(function(error) {
-                                    console.error('Error : ', error);
-                                }).then(response => response.json()).then(data => {
-                                    let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
-                                    damageVAL -= damageINT;
-                                    while (damageVAL > 0 ) {
-                                        if (damageVAL <= damageINT){
-                                            console.log("Precise Damage have been dealt")
-                                            return document.location.href = document.location.href;
-                                        } else {
-                                            damageVAL -= damage(monsterID);
-                                        }
-                                    }
-                                })
-                            }
-                        });
-                        console.log("Joined the Battle");
-                    } catch (error) {
-                        console.error('Error ', error);
-                    }
-                } else {
-                    try {
-                        fetch('https://demonicscans.org/damage.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                            },
-                            body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
-                        }).catch(function(error) {
-                            console.error('Error : ', error);
-                        }).then(response => response.json()).then(data => {
-                            let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
-                            damageVAL -= damageINT;
-                            while (damageVAL > 0 ) {
-                                if (damageVAL <= damageINT){
-                                    console.log("Precise Damage have been dealt")
-                                    return document.location.href = document.location.href;
-                                } else {
-                                    damageVAL -= damage(monsterID);
-                                }
-                            }
-                        });
-                    } catch (error) {
-                        console.error('Error: ', error);
+                let tempData = await fetch('https://demonicscans.org/damage.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
+                }).catch(function(error) {
+                    console.error('Error : ', error);
+                }).then(response => {return response.json();});
+                let damageINT = parseInt(tempData.message.split('<strong>')[1].split('</strong>')[0].replace(/,/g, ""));
+                damageVAL -= damageINT;
+                while (damageVAL > 0 ) {
+                    if (damageVAL <= damageINT){
+                        console.log("Precise Damage have been dealt")
+                        return true;
+                        //return document.location.href = document.location.href;
+                    } else {
+                        damageVAL -= await damage(monsterID);
                     }
                 }
                 setTimeout(function() {
-                    // document.location.href = document.location.href;
+                    document.location.href = document.location.href;
                 }, Math.max(1000, 1 * 100));
             }
 
-            function damage(monsterID = 0) {
-                fetch('https://demonicscans.org/damage.php', {
+            async function damage(monsterID = 0) {
+                return fetch('https://demonicscans.org/damage.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -935,70 +737,10 @@ document.querySelectorAll('.join-btn').forEach((el) => {
                     body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
                 }).then(res => res.json())
                     .then(data => {
-                    return parseInt(data.message.match(/<strong>(.*?)<\/strong>/g)[0].match(/[0-9]+/g).join(''));
+                    return parseInt(data.message.split('<strong>')[1].split('</strong>')[0].match(/[0-9]+/g).join(''));
                 });
             }
 
-            function afterDamage(monsterID = 0){
-                fetch('https://demonicscans.org/damage.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                    if (data.status.trim() === 'success') {
-                        showNotification(data.message, 'success');
-                        animateMonster();
-                        document.getElementById('hpFill').style.width = data.hp.percent + '%';
-                        document.getElementById('stamina_span').innerHTML = data.stamina;
-                        document.getElementById('hpText').innerHTML = `❤️ ${new Intl.NumberFormat().format(data.hp.value)} / 1,200,000 HP`;
-
-                        if(Intl.NumberFormat().format(data.hp.value) <= 0) {
-                            location.reload();
-                        }
-
-                        // Leaderboard + logs update
-                        document.querySelector('.leaderboard-panel').innerHTML =
-                            '<strong>📊 Attackers Leaderboard</strong>' +
-                            '<div class="lb-list">' +
-                            data.leaderboard.map((row, i) => {
-                            const av = row.PICTURE && row.PICTURE.trim()
-                            ? row.PICTURE
-                            : 'images/default_avatar.png';
-                            return `
-                            <div class="lb-row">
-                                <span class="lb-rank">#${i + 1}</span>
-                                <img class="lb-avatar" src="${av}" alt="">
-                                <span class="lb-name">
-                                <a style="color:white;" href="player.php?pid=${row.ID}">${row.USERNAME}</a>
-                                </span>
-                                <span class="lb-dmg">${new Intl.NumberFormat().format(row.DAMAGE_DEALT)} DMG</span>
-                            </div>`;
-                        }).join('') +
-                            '</div>';
-
-                        document.querySelector('.log-panel').innerHTML =
-                            '<strong>📜 Attack Log</strong><br>' +
-                            data.logs.map(row => `⚔️ ${row.USERNAME} used ${row.SKILL_NAME} for ${new Intl.NumberFormat().format(row.DAMAGE)} DMG!<br>`).join('');
-
-                        if (typeof data.xp_delta === 'number') {
-                            addExpUI(data.xp_delta);
-                        } else {
-                            addExpUI(10);
-                        }
-                    } else {
-                        if (data.message && data.message.trim() === "Monster is already dead.") {
-                            location.reload();
-                        } else {
-                            // showNotification(data.message || "An error occurred.", 'error');
-                        }
-                    }
-                })
-                    .catch(() => showNotification("Server error", 'error'));
-            }
 
             function getStamina(chapID = 0) {
                 return fetch('https://demonicscans.org/postreaction.php', {
@@ -1033,12 +775,12 @@ document.querySelectorAll('.join-btn').forEach((el) => {
             }
 
 
-            function renderMonsters(gateNumber = "?gate=3") {
+            async function renderMonsters(gateNumber = "?gate=3") {
                 let monsters = [];
                 let lootMonsters = [];
                 let activeMonsters = [];
 
-                fetch("https://demonicscans.org/active_wave.php" + gateNumber, {
+                let doc = await fetch("https://demonicscans.org/active_wave.php" + gateNumber, {
                     "method": "POST",
                     "headers": {
                         "Content-Type": "application/x-www-form-urlencoded"
@@ -1046,68 +788,66 @@ document.querySelectorAll('.join-btn').forEach((el) => {
                 })
                     .then(response => response.text())
                     .then(html => {
-                    let parser = new DOMParser();
-                    let doc = parser.parseFromString(html, 'text/html');
+                        let parser = new DOMParser();
+                        return parser.parseFromString(html, 'text/html');
+                });
+                let allCards = Array.from(doc.querySelector('.monster-container').children);
+                let position;
 
-                    let allCards = Array.from(doc.querySelector('.monster-container').children);
-                    let position;
+                // Process non-grayscale monsters
+                let images = doc.querySelectorAll('img.monster-img:not(.grayscale)');
+                for (let index = 0; index < images.length; index++){
+                    let el = images[index]
+                    let monster = el.parentElement;
+                    let monsterHP = monster.querySelector(':nth-child(4)').textContent.split(' ');
+                    let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
 
-                    // Process non-grayscale monsters
-                    doc.querySelectorAll('img.monster-img:not(.grayscale)').forEach((el) => {
-                        let monster = el.parentElement;
-                        let monsterHP = monster.querySelector(':nth-child(4)').textContent.split(' ');
-                        let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
-
-                        if (monster.querySelector(':nth-child(7)').innerText != "FULL") {
-                            monsters.push({
-                                id: monster.querySelector('a').href.split('id=')[1],
-                                name: monster.querySelector('h3').innerText,
-                                image: monster.querySelector('img').src,
-                                action: monster.querySelector(":nth-child(7)").innerText,
-                                HP_Cur: monsterHP[1],
-                                HP_Max: monsterHP[3],
-                                Players_Cur: (monsterPlayers || 0),
-                                Players_Max: 20
-                            });
-                            if (getEnemyStatus(monster.querySelector('h3').innerText.trim())){
-
-                                fetch('https://demonicscans.org/user_join_battle.php', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                    body: 'monster_id=' + monster.querySelector('a').href.split('id=')[1] + '&user_id=' + 73553,
-                                })
-                                    .then(res => res.text())
-                                    .then(data => {
-                                    preciseDamage(parseInt(monster.querySelector('a').href.split('id=')[1]));
-                                    setEnemyStatusToFalse(monster.querySelector('h3').innerText.trim());
-                                })
-                                    .catch(() => console.error("Server error"));
-
+                    if (monster.querySelector(':nth-child(7)').innerText != "FULL") {
+                        monsters.push({
+                            id: monster.querySelector('a').href.split('id=')[1],
+                            name: monster.querySelector('h3').innerText,
+                            image: monster.querySelector('img').src,
+                            action: monster.querySelector(":nth-child(7)").innerText,
+                            HP_Cur: monsterHP[1],
+                            HP_Max: monsterHP[3],
+                            Players_Cur: (monsterPlayers || 0),
+                            Players_Max: 20
+                        });
+                        if (getEnemyStatus(monster.querySelector('h3').innerText.trim())){
+                            let tempData = await fetch('https://demonicscans.org/user_join_battle.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: 'monster_id=' + monster.querySelector('a').href.split('id=')[1] + '&user_id=' + 73553,
+                            }).then(res => {return res.text()});
+                            if(tempData.includes("You have successfully joined the battle.") || tempData.includes("You are already part of this battle.")){
+                                let status = await preciseDamage(parseInt(monster.querySelector('a').href.split('id=')[1]));
+                                setEnemyStatusToFalse(monster.querySelector('h3').innerText.trim());
+                                console.log((status == true) ? "Precise Damage have been dealt to " + monster.querySelector('h3').innerText.trim() : "")
                             }
-                        } else if (monster.querySelector(':nth-child(7)').innerText.includes("Continue the Battle")) {
-                            activeMonsters.push({
-                                id: monster.querySelector('a').href.split('id=')[1],
-                                name: monster.querySelector('h3').innerText,
-                                image: monster.querySelector('img').src,
-                                action: monster.querySelector(":nth-child(7)").innerText,
-                                HP_Cur: monsterHP[1],
-                                HP_Max: monsterHP[3],
-                                Players_Cur: (monsterPlayers || 0),
-                                Players_Max: 20
-                            });
                         }
-                        position = allCards.indexOf(monster) + 1;
-                    });
+                    } else if (monster.querySelector(':nth-child(7)').innerText.includes("Continue the Battle")) {
+                        activeMonsters.push({
+                            id: monster.querySelector('a').href.split('id=')[1],
+                            name: monster.querySelector('h3').innerText,
+                            image: monster.querySelector('img').src,
+                            action: monster.querySelector(":nth-child(7)").innerText,
+                            HP_Cur: monsterHP[1],
+                            HP_Max: monsterHP[3],
+                            Players_Cur: (monsterPlayers || 0),
+                            Players_Max: 20
+                        });
+                    }
+                    position = allCards.indexOf(monster) + 1;
+                };
 
-                    // Process grayscale monsters (loot monsters)
-                    doc.querySelectorAll('img.monster-img.grayscale').forEach((el) => {
-                        let monster = el.parentElement;
-                        let monsterHP = monster.querySelector(':nth-child(4)').textContent.split(' ');
-                        let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
+                // Process grayscale monsters (loot monsters)
+                doc.querySelectorAll('img.monster-img.grayscale').forEach((el) => {
+                    let monster = el.parentElement;
+                    let monsterHP = monster.querySelector(':nth-child(4)').textContent.split(' ');
+                    let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
 
-                        if (monster.querySelector(':nth-child(7)') != null){
-                            if (monster.querySelector(':nth-child(7)').innerText.includes("Loot") && position >= allCards.indexOf(monster) + 1) {
-                                /*
+                    if (monster.querySelector(':nth-child(7)') != null){
+                        if (monster.querySelector(':nth-child(7)').innerText.includes("Loot") && position >= allCards.indexOf(monster) + 1) { 
                             fetch("https://demonicscans.org/loot.php", {
                                 "headers": {
                                     "content-type": "application/x-www-form-urlencoded",
@@ -1117,60 +857,56 @@ document.querySelectorAll('.join-btn').forEach((el) => {
                                 "method": "POST",
                                 "mode": "cors",
                                 "credentials": "include"
-                            });
-                            */
-                                lootMonsters.push({
-                                    id: monster.querySelector('a').href.split('id=')[1],
-                                    name: monster.querySelector('h3').innerText,
-                                    image: monster.querySelector('img').src,
-                                    action: monster.querySelector(":nth-child(7)").innerText,
-                                    HP_Cur: monsterHP[1],
-                                    HP_Max: monsterHP[3],
-                                    Players_Cur: (monsterPlayers || 0),
-                                    Players_Max: 20
-                                });
-                            }
-                        }
-                    });
-
-                    let sortedMonsters = [
-                        ...lootMonsters.sort((a, b) => a.id - b.id),
-                        ...activeMonsters.sort((a, b) => a.id - b.id),
-                        ...monsters.sort((a, b) => a.id - b.id)
-                    ];
-
-                    // return sortedMonsters;
-                    let monsterContainer = document.querySelector('.monster-container');
-                    let monstersHTML = ""
-                    sortedMonsters.forEach((el) => {
-                        let monster = el;
-                        let monsterDiv = `<div class="monster-card"> <img src="${monster.image}" class="monster-img ${(monster.action.includes('Loot')) ? 'grayscale' : '' }"alt="Monster"> <h3>${monster.name}</h3><div class="hp-bar"><div class="hp-fill" style="width:${(monster.HP_Cur == 0) ? 0 : (parseFloat(monster.HP_Cur.replaceAll(',', '')/monster.HP_Max.replaceAll(',', '')) ) * 100}%"></div></div> <div>❤️ ${monster.HP_Cur} / ${monster.HP_Max} HP</div><div>👥 Players Joined ${monster.Players_Cur}/${monster.Players_Max}</div><br> <a href="battle.php?id=${monster.id}"><button class="join-btn" ${(monster.action.includes('Continue the Battle')) ? 'style="background:#e67e22;"' : ''}>${monster.action}</button></a></div>`;
-                        monstersHTML += monsterDiv;
-                    })
-
-                    monsterContainer.innerHTML = monstersHTML;
-                    monsterContainer.querySelectorAll('.join-btn').forEach((el) => {
-                        if (el.innerText.includes("Join the Battle")) {
-                            el.addEventListener('click', function(e) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                fetch('https://demonicscans.org/user_join_battle.php', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                    body: 'monster_id=' + el.parentElement.href.split('=')[1] + '&user_id=' + 73553,
-                                })
-                                    .then(res => res.text())
-                                    .then(data => {
-                                    window.location.href = el.parentElement.href;
-                                })
-                                    .catch(() => console.error("Server error"));
+                            }); 
+                            lootMonsters.push({
+                                id: monster.querySelector('a').href.split('id=')[1],
+                                name: monster.querySelector('h3').innerText,
+                                image: monster.querySelector('img').src,
+                                action: monster.querySelector(":nth-child(7)").innerText,
+                                HP_Cur: monsterHP[1],
+                                HP_Max: monsterHP[3],
+                                Players_Cur: (monsterPlayers || 0),
+                                Players_Max: 20
                             });
                         }
-                    });
+                    }
+                });
+
+                let sortedMonsters = [
+                    ...lootMonsters.sort((a, b) => a.id - b.id),
+                    ...activeMonsters.sort((a, b) => a.id - b.id),
+                    ...monsters.sort((a, b) => a.id - b.id)
+                ];
+
+                // return sortedMonsters;
+                let monsterContainer = document.querySelector('.monster-container');
+                let monstersHTML = ""
+                sortedMonsters.forEach((el) => {
+                    let monster = el;
+                    let monsterDiv = `<div class="monster-card"> <img src="${monster.image}" class="monster-img ${(monster.action.includes('Loot')) ? 'grayscale' : '' }"alt="Monster"> <h3>${monster.name}</h3><div class="hp-bar"><div class="hp-fill" style="width:${(monster.HP_Cur == 0) ? 0 : (parseFloat(monster.HP_Cur.replaceAll(',', '')/monster.HP_Max.replaceAll(',', '')) ) * 100}%"></div></div> <div>❤️ ${monster.HP_Cur} / ${monster.HP_Max} HP</div><div>👥 Players Joined ${monster.Players_Cur}/${monster.Players_Max}</div><br> <a href="battle.php?id=${monster.id}"><button class="join-btn" ${(monster.action.includes('Continue the Battle')) ? 'style="background:#e67e22;"' : ''}>${monster.action}</button></a></div>`;
+                    monstersHTML += monsterDiv;
                 })
-                    .catch(error => {console.error('Error:', error);});
-            }
 
+                monsterContainer.innerHTML = monstersHTML;
+                monsterContainer.querySelectorAll('.join-btn').forEach((el) => {
+                    if (el.innerText.includes("Join the Battle")) {
+                        el.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            fetch('https://demonicscans.org/user_join_battle.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: 'monster_id=' + el.parentElement.href.split('=')[1] + '&user_id=' + 73553,
+                            })
+                                .then(res => res.text())
+                                .then(data => {
+                                window.location.href = el.parentElement.href;
+                            })
+                                .catch(() => console.error("Server error"));
+                        });
+                    }
+                });
+            }
         });
     }
 })();
