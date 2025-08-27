@@ -570,6 +570,16 @@
                                     console.error('Error auto-detecting stamina:', error);
                                     alert('Error auto-detecting stamina. Check console for details.');
                                 }
+                            } else if (data.includes('You are already part of this battle.')) {
+                                try {
+                                    for (let index = 0; index < currentStamina - 1; index++) {
+                                        damage(monsterID);
+                                    }
+                                    afterDamage(monsterID);
+                                } catch (error) {
+                                    console.error('Error auto-detecting stamina:', error);
+                                    alert('Error auto-detecting stamina. Check console for details.');
+                                }
                             }
                         });
                         console.log("Joined the Battle");
@@ -628,6 +638,27 @@
                                     }
                                     afterDamage(monsterID);
                                 });
+                            } else if (data.includes('You are already part of this battle.')) {
+                                fetch('https://demonicscans.org/damage.php', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded',
+                                    },
+                                    body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
+                                }).catch(function(error) {
+                                    console.error('Error : ', error);
+                                }).then(response => response.json()).then(data => {
+                                    let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
+                                    let enemyHIT = Math.ceil(damageVAL / damageINT) - 1;
+                                    console.log(enemyHIT);
+                                    if (enemyHIT > maxStamina) {
+                                        alert('Not enough STAMINA!');
+                                    }
+                                    for (let index = 0; index < enemyHIT - 1; index++) {
+                                        damage(monsterID);
+                                    }
+                                    afterDamage(monsterID);
+                                })
                             }
                         });
                         console.log("Joined the Battle");
