@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stamina Collector
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  Collect specific amount of stamina with auto-detection
 // @author       You
 // @match        https://demonicscans.org/*
@@ -73,7 +73,7 @@
                 localStorage.setItem('dailyStamina', 0); 
             }
             let dailyStamina = parseInt(localStorage.getItem('dailyStamina'));
-
+            let reactID = getCookieByName('useruid');
 
             const staminaElement = document.querySelector('.gtb-value');
             if (!staminaElement) {
@@ -343,7 +343,7 @@
 
                     const timeLeft = midnightIST - currentIST;
                     
-                    if (timeLeft <= 0) {
+                    if (timeLeft <= 3) {
                         // Reset daily stamina at midnight
                         dailyStamina = 0;
                         localStorage.setItem('dailyStamina', '0');
@@ -413,10 +413,20 @@
                 const total = chaptersToProcess;
                 let staminaGained = 0;
 
+
+                let staminaDifference = maxStamina - currentStamina;
+  
+
                 for (let index = startChapter; index < endChapter; index++) {
+                    if (staminaGained >= staminaDifference){
+                        updateButtonState();
+                        console.log(`STAMINA GAINED: ${staminaGained} from chapters ${startChapter} to ${startChapter + processed - 1}`);
+                        alert(`Stamina collection stopped! \n Gained ${staminaGained} stamina from ${processed} chapters.\n Any more and it would waste your stamina gains!`);
+                        break;
+                    }
                     try {
                         const response = await getStamina(index);
-                        if (response && response.includes("You have earned +2 stamina")) {
+                        if (response && response.includes("added")) {
                             staminaGained += 2;
                             dailyStamina += 2;
                             localStorage.setItem('dailyStamina', dailyStamina.toString());
@@ -441,8 +451,7 @@
                     // Add a small delay between requests
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
-
-                clearComments(staminaGained);
+ 
 
                 // Update button state after processing
                 updateButtonState();
@@ -527,62 +536,6 @@
             container.appendChild(preciseAttack);
 
             document.body.appendChild(container);
-
-            function clearComments(stamina){
-                for (let index = 0; index < Math.ceil(stamina/100); index++){
-                    fetch("https://demonicscans.org/mycomments.php", {
-                        "method": "POST",
-                        "headers": {
-                            "Content-Type": "application/x-www-form-urlencoded"
-                        }
-                    })
-                    .then(response => response.text())
-                    .then(htmlString => {
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(htmlString, 'text/html');
-
-                        const commentElements = doc.querySelectorAll('.comment');
-                        const comments = [];
-
-                        commentElements.forEach(commentElement => {
-                            const commentId = commentElement.id.replace('comment-', '');
-                            
-                            const commentTextDiv = commentElement.querySelector('div > strong + a').nextElementSibling; // This gets the next sibling after the <a> tag
-                            let commentText = '';
-
-                            const allDivs = commentElement.querySelectorAll('div');
-                            if (allDivs.length > 1) {
-                                commentText = allDivs[1].textContent.trim();
-                            }
-
-                            comments.push({
-                                id: commentId,
-                                text: commentText
-                            });
-                        });
-                        let remCount = 0;
-                        for (let index = 0; index < comments.length; index++) {
-                            let comID = comments[index].id;
-                            let comText = comments[index].text;
-                            if (comText == 'Give me stamina!'){
-                            fetch("https://demonicscans.org/deletecomment.php", {
-                                "headers": {
-                                    "content-type": "application/x-www-form-urlencoded",
-                                },
-                                "referrer": "https://demonicscans.org/mycomments.php",
-                                "body": "commentid="+comID,
-                                "method": "POST",
-                                });
-                                remCount += 1;
-                            }
-                        }
-                        console.log('Removed comments count:', remCount);
-                    })
-                    .catch(error => {
-                        console.error('Error fetching or parsing comments:', error);
-                    });
-                }
-            }
 
             function formatNumberCompact(num) {
                 if (num >= 1000000) {
@@ -783,12 +736,12 @@
             }
 
             function getStamina(chapID = 0) {
-                return fetch('https://demonicscans.org/submitcmnt.php', {
+                return fetch('https://demonicscans.org/postreaction.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: 'userid=' + userID + '&chapterid=' + chapID + '&commentcontent=Give%20me%20stamina!&replyto=0'
+                    body: 'useruid=' + reactID + '&chapterid=' + chapID + '&reaction=1'
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -798,10 +751,10 @@
                 })
                 .then(responseText => {
                     // Check if the response contains the success message for stamina farming
-                    if (responseText.includes("MAX_STAMINA_FARM_REACHED")) {
-                        console.log("Max stamina farm reached for chapter " + chapID);
+                    if (responseText.includes("updated")) {
+                        console.log("You've already reacted to this chapter :  " + chapID);
                         return responseText;
-                    } else if (responseText.includes("You have earned +2 stamina")) {
+                    } else if (responseText.includes("added")) {
                         console.log("Stamina successfully farmed for chapter " + chapID);
                         return responseText;
                     }
