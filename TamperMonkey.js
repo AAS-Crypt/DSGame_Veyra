@@ -8,7 +8,6 @@
 // @grant        none
 // ==/UserScript==
 
-
 (function() {
     'use strict';
 
@@ -658,20 +657,18 @@
                         }).then(response => response.text()).then(data => {
                             if (data.includes('You have successfully joined the battle.') ) {
                                 try {
-                                    for (let index = 0; index < currentStamina - 1; index++) {
+                                    for (let index = 0; index < currentStamina; index++) {
                                         damage(monsterID);
                                     }
-                                    afterDamage(monsterID);
                                 } catch (error) {
                                     console.error('Error auto-detecting stamina:', error);
                                     alert('Error auto-detecting stamina. Check console for details.');
                                 }
                             } else if (data.includes('You are already part of this battle.')) {
                                 try {
-                                    for (let index = 0; index < currentStamina - 1; index++) {
+                                    for (let index = 0; index < currentStamina; index++) {
                                         damage(monsterID);
                                     }
-                                    afterDamage(monsterID);
                                 } catch (error) {
                                     console.error('Error auto-detecting stamina:', error);
                                     alert('Error auto-detecting stamina. Check console for details.');
@@ -684,10 +681,9 @@
                     }
                 } else {
                     try {
-                        for (let index = 0; index < currentStamina - 1; index++) {
+                        for (let index = 0; index < currentStamina; index++) {
                             damage(monsterID);
                         }
-                        afterDamage(monsterID);
                     } catch (error) {
                         console.error('Error auto-detecting stamina:', error);
                         alert('Error auto-detecting stamina. Check console for details.');
@@ -715,7 +711,7 @@
                 let damageINT = parseInt(tempData.message.split('<strong>')[1].split('</strong>')[0].replace(/,/g, ""));
                 damageVAL -= damageINT;
                 while (damageVAL > 0 ) {
-                    if (damageVAL <= damageINT){
+                    if (damageVAL + damageINT <= damageINT){
                         console.log("Precise Damage have been dealt")
                         return true;
                         //return document.location.href = document.location.href;
@@ -813,11 +809,11 @@
                             Players_Cur: (monsterPlayers || 0),
                             Players_Max: 20
                         });
-                        if (getEnemyStatus(monster.querySelector('h3').innerText.trim())){
+                        if (getEnemyStatus(monster.querySelector('h3').innerText.trim()) && monster.querySelector(":nth-child(7)").innerText != "Continue the Battle"){
                             let tempData = await fetch('https://demonicscans.org/user_join_battle.php', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                body: 'monster_id=' + monster.querySelector('a').href.split('id=')[1] + '&user_id=' + 73553,
+                                body: 'monster_id=' + monster.querySelector('a').href.split('id=')[1] + '&user_id=' + userID,
                             }).then(res => {return res.text()});
                             if(tempData.includes("You have successfully joined the battle.") || tempData.includes("You are already part of this battle.")){
                                 let status = await preciseDamage(parseInt(monster.querySelector('a').href.split('id=')[1]));
@@ -847,7 +843,7 @@
                     let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
 
                     if (monster.querySelector(':nth-child(7)') != null){
-                        if (monster.querySelector(':nth-child(7)').innerText.includes("Loot") && position >= allCards.indexOf(monster) + 1) { 
+                        if (monster.querySelector(':nth-child(7)').innerText.includes("Loot") && position >= allCards.indexOf(monster) + 1) {
                             fetch("https://demonicscans.org/loot.php", {
                                 "headers": {
                                     "content-type": "application/x-www-form-urlencoded",
@@ -857,7 +853,7 @@
                                 "method": "POST",
                                 "mode": "cors",
                                 "credentials": "include"
-                            }); 
+                            });
                             lootMonsters.push({
                                 id: monster.querySelector('a').href.split('id=')[1],
                                 name: monster.querySelector('h3').innerText,
@@ -896,7 +892,7 @@
                             fetch('https://demonicscans.org/user_join_battle.php', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                body: 'monster_id=' + el.parentElement.href.split('=')[1] + '&user_id=' + 73553,
+                                body: 'monster_id=' + el.parentElement.href.split('=')[1] + '&user_id=' + userID,
                             })
                                 .then(res => res.text())
                                 .then(data => {
