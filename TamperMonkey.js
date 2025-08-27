@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stamina Collector
 // @namespace    http://tampermonkey.net/
-// @version      1.9
+// @version      1.10
 // @description  Collect specific amount of stamina with auto-detection
 // @author       You
 // @match        https://demonicscans.org/*
@@ -859,7 +859,7 @@ document.querySelectorAll('.join-btn').forEach((el) => {
                                 }).then(response => response.json()).then(data => {
                                     let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
                                     damageVAL -= damageINT;
-                                    while (true) {
+                                    while (damageVAL > 0 ) {
                                         if (damageVAL <= damageINT){
                                             console.log("Precise Damage have been dealt")
                                             return document.location.href = document.location.href;
@@ -880,7 +880,7 @@ document.querySelectorAll('.join-btn').forEach((el) => {
                                 }).then(response => response.json()).then(data => {
                                     let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
                                     damageVAL -= damageINT;
-                                    while (true) {
+                                    while (damageVAL > 0 ) {
                                         if (damageVAL <= damageINT){
                                             console.log("Precise Damage have been dealt")
                                             return document.location.href = document.location.href;
@@ -908,7 +908,7 @@ document.querySelectorAll('.join-btn').forEach((el) => {
                         }).then(response => response.json()).then(data => {
                             let damageINT = (data.message.split('<strong>')[1].split('</strong>')[0]).replace(/,/g, "");
                             damageVAL -= damageINT;
-                            while (true) {
+                            while (damageVAL > 0 ) {
                                 if (damageVAL <= damageINT){
                                     console.log("Precise Damage have been dealt")
                                     return document.location.href = document.location.href;
