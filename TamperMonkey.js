@@ -503,40 +503,41 @@
             markingContainer.style.marginTop = '10px';
             markingContainer.style.marginBottom = '10px';
 
+            if (document.location.href.includes("https://demonicscans.org/active_wave.php")){
+                let boxDiv;
+                enemies.forEach(function(entity, index) {
+                    boxDiv = document.createElement('div');
+                    boxDiv.style.display = 'flex';
+                    let markCheckBox = document.createElement('input');
+                    markCheckBox.type = 'checkbox';
+                    markCheckBox.id = 'enemy-target-' + index;
+                    markCheckBox.checked = tempArray.split(',')[index] === 'true';
+                    markCheckBox.value = tempArray.split(',')[index];
+                    markCheckBox.style.padding = '8px';
+                    markCheckBox.style.border = '1px solid #ccc';
+                    markCheckBox.style.borderRadius = '4px';
+                    markCheckBox.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    markCheckBox.style.color = 'white';
+                    markCheckBox.addEventListener('change', function(e){
+                        tempArray = tempArray.split(',');
+                        tempArray[index] = e.target.checked.toString();
+                        tempArray = tempArray.join(',');
+                        localStorage.setItem('enemy-targets', tempArray);
+                    });
+                    boxDiv.appendChild(markCheckBox);
 
-            let boxDiv;
-            enemies.forEach(function(entity, index) {
-                boxDiv = document.createElement('div');
-                boxDiv.style.display = 'flex';
-                let markCheckBox = document.createElement('input');
-                markCheckBox.type = 'checkbox';
-                markCheckBox.id = 'enemy-target-' + index;
-                markCheckBox.checked = tempArray.split(',')[index] === 'true';
-                markCheckBox.value = tempArray.split(',')[index];
-                markCheckBox.style.padding = '8px';
-                markCheckBox.style.border = '1px solid #ccc';
-                markCheckBox.style.borderRadius = '4px';
-                markCheckBox.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                markCheckBox.style.color = 'white';
-                markCheckBox.addEventListener('change', function(e){
-                    tempArray = tempArray.split(',');
-                    tempArray[index] = e.target.checked.toString();
-                    tempArray = tempArray.join(',');
-                    localStorage.setItem('enemy-targets', tempArray);
-                });
-                boxDiv.appendChild(markCheckBox);
-
-                const markLabel = document.createElement('label');
-                markLabel.textContent = entity;
-                markLabel.style.width = 'auto';
-                markLabel.style.display = 'block';
-                markLabel.style.marginBottom = '5px';
-                markLabel.style.fontWeight = 'bold';
-                markLabel.style.color = '#ffdd00';
-                boxDiv.appendChild(markLabel);
-                markingContainer.appendChild(boxDiv);
-            })
-            container.appendChild(markingContainer);
+                    const markLabel = document.createElement('label');
+                    markLabel.textContent = entity;
+                    markLabel.style.width = 'auto';
+                    markLabel.style.display = 'block';
+                    markLabel.style.marginBottom = '5px';
+                    markLabel.style.fontWeight = 'bold';
+                    markLabel.style.color = '#ffdd00';
+                    boxDiv.appendChild(markLabel);
+                    markingContainer.appendChild(boxDiv);
+                })
+                container.appendChild(markingContainer);
+            }
 
 
             function formatNumberCompact(num) {
