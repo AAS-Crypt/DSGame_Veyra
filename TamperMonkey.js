@@ -36,7 +36,7 @@
         localStorage.setItem('dailyStamina', 0);
     }
     if(localStorage.getItem('enemy-targets') == null){
-        localStorage.setItem('enemy-targets', 'false,false,false,false,false')
+        localStorage.setItem('enemy-targets', 'false,false,false,false,false,false,false,false,false')
     }
     let tempArray = localStorage.getItem('enemy-targets');
 
