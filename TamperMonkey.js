@@ -840,7 +840,7 @@
                                 Players_Max: 20
                             });
                             if (getEnemyStatus(monster.querySelector('h3').innerText.trim()) && monster.querySelector(":nth-child(7)").innerText.includes("Join the Battle")){
-                                await new Promise(resolve => setTimeout(async ()=>{
+
                                     let tempData = await fetch('https://demonicscans.org/user_join_battle.php', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -854,7 +854,6 @@
                                     } else if (tempData.includes("You can only join 3 monsters at a time.")){
                                         //console.log("waiting");
                                     }
-                                }, 1000 * 3));
                             }
                         } else if (monster.querySelector(':nth-child(7)').innerText.includes("Continue the Battle")) {
                             activeMonsters.push({
@@ -876,7 +875,6 @@
                         let monster = el.parentElement;
                         let monsterHP = monster.querySelector(':nth-child(4)').textContent.split(' ');
                         let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
-                        //console.log(monster);
                         if (monster.querySelector(':nth-child(7)') != null){
                             let monsterId = monster.querySelector('a').href.split('id=')[1];
                             if (monster.querySelector(':nth-child(7)').innerText.includes("Loot") && (position >= allCards.indexOf(monster) + 1) && (ignoreList.includes(monsterId) == false) ) {
