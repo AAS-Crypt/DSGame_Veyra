@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stamina Collector
 // @namespace    http://tampermonkey.net/
-// @version      1.11
+// @version      1.12
 // @description  Collect specific amount of stamina with auto-detection
 // @author       You
 // @match        https://demonicscans.org/*
@@ -39,14 +39,6 @@
     let dailyStamina = parseInt(localStorage.getItem('dailyStamina'));
     let reactID = getCookieByName('useruid');
 
-    const staminaElement = document.querySelector('.gtb-value');
-    if (!staminaElement) {
-        alert('Stamina element not found! Make sure you\'re on a page that displays stamina.');
-        return;
-    }
-    const Staminas = staminaElement.textContent.trim().split(' / ');
-    const currentStamina = parseInt(Staminas[0]);
-    const maxStamina = parseInt(Staminas[1]);
     var t; // Timer/Interval ID
 
     const enemies = ['Goblin Slinger', 'Goblin Skirmisher', 'Orc Grunt', 'Orc Bonecrusher', 'Hobgoblin Spearman'];
@@ -126,7 +118,17 @@
     }
     //if (document.location.href.includes("https://demonicscans.org/active_wave.php") ? document.querySelector('.monster-container').innerHTML = ""; : return null
     if (allowedPaths.includes(currentPath)) {
+
         window.addEventListener('load', function() {
+            const staminaElement = document.querySelector('.gtb-value');
+            if (!staminaElement) {
+                alert('Stamina element not found! Make sure you\'re on a page that displays stamina.');
+                return;
+            }
+            const Staminas = staminaElement.textContent.trim().split(' / ');
+            const currentStamina = parseInt(Staminas[0]);
+            const maxStamina = parseInt(Staminas[1]);
+
             if (document.location.href == "https://demonicscans.org/chat.php"){
                 clearInterval(t);
                 t=setInterval(updateChat,1000 * 2);
@@ -393,13 +395,14 @@
                     midnightIST.setHours(24, 0, 0, 0);
 
                     const timeLeft = midnightIST - currentIST;
-
-                    if (timeLeft <= 3) {
+                    if (timeLeft <= 60) {
                         // Reset daily stamina at midnight
-                        dailyStamina = 0;
-                        localStorage.setItem('dailyStamina', '0');
-                        updateButtonState();
-                        return;
+                        //console.log("Reseting stamina");
+                        return setTimeout( () => {
+                            dailyStamina = 0;
+                            localStorage.setItem('dailyStamina', '0');
+                            updateButtonState();
+                        }, 1000 * 60)
                     }
 
                     const hours = Math.floor(timeLeft / (1000 * 60 * 60));
@@ -418,107 +421,7 @@
             updateButtonState();
 
             // Add click handler
-            button.addEventListener('click', async function() {
-                const targetStaminaValue = parseInt(targetInput.value);
-                const startChapter = parseInt(minInput.value) || 1;
-
-                // Validate input
-                if (isNaN(targetStaminaValue) || targetStaminaValue < 2) {
-                    alert('Please enter a valid amount of stamina to gain (minimum 2)');
-                    return;
-                }
-
-                if (targetStaminaValue % 2 !== 0) {
-                    alert('Stamina amount must be divisible by 2!');
-                    return;
-                }
-
-                // Check if we would exceed daily limit
-                if (dailyStamina + targetStaminaValue > dailyLimit) {
-                    const remainingStamina = dailyLimit - dailyStamina;
-                    if (remainingStamina > 0) {
-                        if (!confirm(`You can only gain ${remainingStamina} more stamina today (${dailyStamina}/${dailyLimit}). Would you like to proceed with this amount?`)) {
-                            return;
-                        }
-                        // Adjust target to remaining stamina
-                        targetInput.value = Math.floor(remainingStamina / 2) * 2;
-                    } else {
-                        alert('Daily stamina limit reached! Please try again after midnight.');
-                        return;
-                    }
-                }
-
-                // Calculate how many chapters to process
-                const chaptersToProcess = targetStaminaValue / 2;
-                const endChapter = startChapter + chaptersToProcess;
-
-                // Save values to localStorage
-                localStorage.setItem('staminaTarget', targetInput.value);
-                localStorage.setItem('staminaMinChap', endChapter);
-
-                button.disabled = true;
-                button.textContent = 'Processing...';
-                button.style.backgroundColor = '#999';
-
-                let processed = 0;
-                const total = chaptersToProcess;
-                let staminaGained = 0;
-
-
-                let staminaDifference = maxStamina - currentStamina;
-
-
-                for (let index = startChapter; index < endChapter; index++) {
-                    if (staminaGained >= staminaDifference){
-                        updateButtonState();
-                        console.log(`STAMINA GAINED: ${staminaGained} from chapters ${startChapter} to ${startChapter + processed - 1}`);
-                        alert(`Stamina collection stopped! \n Gained ${staminaGained} stamina from ${processed} chapters.\n Any more and it would waste your stamina gains!`);
-                        break;
-                    }
-                    try {
-                        const response = await getStamina(index);
-                        if (response && response.includes("added")) {
-                            staminaGained += 2;
-                            dailyStamina += 2;
-                            localStorage.setItem('dailyStamina', dailyStamina.toString());
-                        }
-                    } catch (error) {
-                        console.error('Error processing chapter ' + index + ':', error);
-                    }
-
-                    processed++;
-
-                    // Update button text with progress
-                    if (processed % 5 === 0 || processed === total) {
-                        button.textContent = `Processing... (${processed}/${total})`;
-                    }
-
-                    // Check if we hit daily limit during processing
-                    if (dailyStamina >= dailyLimit) {
-                        console.log(`Daily limit reached during processing. Processed ${processed} chapters.`);
-                        break;
-                    }
-
-                    // Add a small delay between requests
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-
-
-                // Update button state after processing
-                updateButtonState();
-
-                if (dailyStamina >= dailyLimit) {
-                    alert(`MAX_STAMINA_FARM_REACHED! Processed ${processed} chapters. Daily limit reached.`);
-                } else {
-                    console.log(`STAMINA GAINED: ${staminaGained} from chapters ${startChapter} to ${startChapter + processed - 1}`);
-                    alert(`Stamina collection complete! Gained ${staminaGained} stamina from ${processed} chapters.`);
-                }
-
-                // Increase the min chapter for next time
-                const newMinChapter = parseInt(minInput.value) + processed;
-                localStorage.setItem('staminaMinChap', newMinChapter.toString());
-                minInput.value = newMinChapter;
-            });
+            button.addEventListener('click', async function() { await getStaminaButton() });
 
             // Add button to container
             container.appendChild(button);
@@ -536,7 +439,11 @@
             fullAttack.style.marginTop = '10px';
             fullAttack.style.marginBottom = '10px';
             fullAttack.style.width = '100%';
-            fullAttack.addEventListener('click', fullDamage);
+            fullAttack.addEventListener('click', ()=>{
+                let tempID = parseInt(document.location.href.split('id=')[1]);
+                console.log(tempID);
+                fullDamage(tempID);
+            });
             container.appendChild(fullAttack);
 
             // Create target stamina input
@@ -583,7 +490,7 @@
             preciseAttack.style.marginTop = '10px';
             preciseAttack.style.marginBottom = '10px';
             preciseAttack.style.width = '100%';
-            preciseAttack.addEventListener('click', preciseDamage);
+            preciseAttack.addEventListener('click', () => {preciseDamage(document.location.href.split("id=")[1]);});
             container.appendChild(preciseAttack);
 
             document.body.appendChild(container);
@@ -641,63 +548,24 @@
                 return num.toString();
             }
 
-            function fullDamage(monsterID = 0) {
-                monsterID = document.location.href.split("id=")[1];
-                if(document.getElementById('join-battle') != null) {
-                    try {
-                        fetch("https://demonicscans.org/user_join_battle.php", {
-                            "headers": {
-                                "content-type": "application/x-www-form-urlencoded",
-                            },
-                            "referrer": "https://demonicscans.org/battle.php?id="+monsterID,
-                            "body": "monster_id=" + monsterID + "&user_id=" + userID,
-                            "method": "POST",
-                        }).catch(function(error) {
-                            console.error('Error : ', error);
-                        }).then(response => response.text()).then(data => {
-                            if (data.includes('You have successfully joined the battle.') ) {
-                                try {
-                                    for (let index = 0; index < currentStamina; index++) {
-                                        damage(monsterID);
-                                    }
-                                } catch (error) {
-                                    console.error('Error auto-detecting stamina:', error);
-                                    alert('Error auto-detecting stamina. Check console for details.');
-                                }
-                            } else if (data.includes('You are already part of this battle.')) {
-                                try {
-                                    for (let index = 0; index < currentStamina; index++) {
-                                        damage(monsterID);
-                                    }
-                                } catch (error) {
-                                    console.error('Error auto-detecting stamina:', error);
-                                    alert('Error auto-detecting stamina. Check console for details.');
-                                }
-                            }
-                        });
-                        console.log("Joined the Battle");
-                    } catch (error) {
-                        console.error('Error ', error);
+            async function fullDamage(monsterID = 0) {
+                try {
+                    for (let index = 0; index < currentStamina; index++) {
+                        let status = await damage(monsterID);
+                        console.log(status);
                     }
-                } else {
-                    try {
-                        for (let index = 0; index < currentStamina; index++) {
-                            damage(monsterID);
-                        }
-                    } catch (error) {
-                        console.error('Error auto-detecting stamina:', error);
-                        alert('Error auto-detecting stamina. Check console for details.');
-                    }
+                } catch (error) {
+                    console.error('Error auto-detecting stamina:', error);
+                    alert('Error auto-detecting stamina. Check console for details.');
                 }
                 setTimeout(function() {
-                    // document.location.href = document.location.href;
+                    if(document.location.href.includes("battle.php?id=")){
+                        document.location.href = document.location.href;
+                    }
                 }, Math.max(1000, 1 * 100));
             }
 
             async function preciseDamage(monsterID = 0) {
-                if(document.location.href.includes('battle')){
-                    monsterID = document.location.href.split("id=")[1];
-                }
                 let damageVAL = parseInt(document.getElementById('damage-target').value);
                 let tempData = await fetch('https://demonicscans.org/damage.php', {
                     method: 'POST',
@@ -720,7 +588,9 @@
                     }
                 }
                 setTimeout(function() {
-                    document.location.href = document.location.href;
+                    if(document.location.href.includes("battle.php?id=")){
+                        document.location.href = document.location.href;
+                    }
                 }, Math.max(1000, 1 * 100));
             }
 
@@ -733,7 +603,17 @@
                     body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
                 }).then(res => res.json())
                     .then(data => {
-                    return parseInt(data.message.split('<strong>')[1].split('</strong>')[0].match(/[0-9]+/g).join(''));
+                    if(data.status == "success"){
+                        return parseInt(data.message.split('<strong>')[1].split('</strong>')[0].match(/[0-9]+/g).join(''));
+                    } else if (data.message.includes("Not enough stamina.") ) {
+                        let temptargetStaminaValue = parseInt(targetInput.value);
+                        targetInput.value = 2;
+                        document.getElementById('stamina-button').click();
+                        targetInput.value = temptargetStaminaValue;
+                        return parseInt(0);
+                    } else if (data.message.includes("Monster is already dead")) {
+                        return parseInt(999999999);
+                    }
                 });
             }
 
@@ -770,8 +650,118 @@
                 });
             }
 
+            async function getStaminaButton(){
+                const targetStaminaValue = parseInt(targetInput.value);
+                const startChapter = parseInt(minInput.value) || 1;
 
+                // Validate input
+                if (isNaN(targetStaminaValue) || targetStaminaValue < 2) {
+                    alert('Please enter a valid amount of stamina to gain (minimum 2)');
+                    return;
+                }
+
+                if (targetStaminaValue % 2 !== 0) {
+                    alert('Stamina amount must be divisible by 2!');
+                    return;
+                }
+
+                // Check if we would exceed daily limit
+                if (dailyStamina + targetStaminaValue >= dailyLimit) {
+                    const remainingStamina = dailyLimit - dailyStamina;
+                    if (remainingStamina > 0) {
+/*
+                        if (!confirm(`You can only gain ${remainingStamina} more stamina today (${dailyStamina}/${dailyLimit}). Would you like to proceed with this amount?`)) {
+                            return;
+                        }
+                        // Adjust target to remaining stamina
+                        targetInput.value = Math.floor(remainingStamina / 2) * 2;
+                        */
+                    } else {
+                        return alert('Daily stamina limit reached! Please try again after midnight.');
+                    }
+                }
+                if (dailyStamina >= dailyLimit){
+                    updateButtonState();
+                    console.log(`STAMINA GAINED: ${staminaGained} from chapters ${startChapter} to ${startChapter + processed - 1}`);
+                    //alert(`Stamina collection stopped! \n Gained ${staminaGained} stamina from ${processed} chapters.\n Any more and it would waste your stamina gains!`);
+                    return alert('Daily stamina limit reached! Please try again after midnight.222');
+                }
+                // Calculate how many chapters to process
+                const chaptersToProcess = targetStaminaValue / 2;
+                const endChapter = startChapter + chaptersToProcess;
+
+                // Save values to localStorage
+                localStorage.setItem('staminaTarget', targetInput.value);
+                localStorage.setItem('staminaMinChap', endChapter);
+
+                button.disabled = true;
+                button.textContent = 'Processing...';
+                button.style.backgroundColor = '#999';
+
+                let processed = 0;
+                const total = chaptersToProcess;
+                let staminaGained = 0;
+
+
+                let staminaDifference = maxStamina - currentStamina;
+
+
+                for (let index = startChapter; index < endChapter; index++) {
+                    if (staminaGained >= staminaDifference){
+                        updateButtonState();
+                        console.log(`STAMINA GAINED: ${staminaGained} from chapters ${startChapter} to ${startChapter + processed - 1}`);
+                        //alert(`Stamina collection stopped! \n Gained ${staminaGained} stamina from ${processed} chapters.\n Any more and it would waste your stamina gains!`);
+                        break;
+                    }
+                    try {
+                        const response = await getStamina(index);
+                        if (response && response.includes("added")) {
+                            staminaGained += 2;
+                            dailyStamina += 2;
+                            localStorage.setItem('dailyStamina', dailyStamina.toString());
+                        }
+                    } catch (error) {
+                        console.error('Error processing chapter ' + index + ':', error);
+                    }
+
+                    processed++;
+
+                    // Update button text with progress
+                    if (processed % 5 === 0 || processed === total) {
+                        button.textContent = `Processing... (${processed}/${total})`;
+                    }
+
+                    // Check if we hit daily limit during processing
+                    if (dailyStamina >= dailyLimit) {
+                        console.log(`Daily limit reached during processing. Processed ${processed} chapters.`);
+                        break;
+                    }
+
+                    // Add a small delay between requests
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+
+                // Update button state after processing
+                updateButtonState();
+
+                if (dailyStamina >= dailyLimit) {
+                    //alert(`MAX_STAMINA_FARM_REACHED! Processed ${processed} chapters. Daily limit reached.`);
+                } else {
+                    console.log(`STAMINA GAINED: ${staminaGained} from chapters ${startChapter} to ${startChapter + processed - 1}`);
+                    //alert(`Stamina collection complete! Gained ${staminaGained} stamina from ${processed} chapters.`);
+                }
+
+                // Increase the min chapter for next time
+                const newMinChapter = parseInt(minInput.value) + processed;
+                localStorage.setItem('staminaMinChap', newMinChapter.toString());
+                minInput.value = newMinChapter;
+            }
+
+            let ignoreList = [];
             async function renderMonsters(gateNumber = "?gate=3") {
+                let tempTimer = document.getElementById('stamina_timer');
+
                 let monsters = [];
                 let lootMonsters = [];
                 let activeMonsters = [];
@@ -782,10 +772,10 @@
                         "Content-Type": "application/x-www-form-urlencoded"
                     }
                 })
-                    .then(response => response.text())
-                    .then(html => {
-                        let parser = new DOMParser();
-                        return parser.parseFromString(html, 'text/html');
+                .then(response => response.text())
+                .then(html => {
+                    let parser = new DOMParser();
+                    return parser.parseFromString(html, 'text/html');
                 });
                 let allCards = Array.from(doc.querySelector('.monster-container').children);
                 let position;
@@ -797,10 +787,11 @@
                     let monster = el.parentElement;
                     let monsterHP = monster.querySelector(':nth-child(4)').textContent.split(' ');
                     let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
+                    let monsterId = monster.querySelector('a').href.split('id=')[1];
 
                     if (monster.querySelector(':nth-child(7)').innerText != "FULL") {
                         monsters.push({
-                            id: monster.querySelector('a').href.split('id=')[1],
+                            id: monsterId,
                             name: monster.querySelector('h3').innerText,
                             image: monster.querySelector('img').src,
                             action: monster.querySelector(":nth-child(7)").innerText,
@@ -809,21 +800,26 @@
                             Players_Cur: (monsterPlayers || 0),
                             Players_Max: 20
                         });
-                        if (getEnemyStatus(monster.querySelector('h3').innerText.trim()) && monster.querySelector(":nth-child(7)").innerText != "Continue the Battle"){
-                            let tempData = await fetch('https://demonicscans.org/user_join_battle.php', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                body: 'monster_id=' + monster.querySelector('a').href.split('id=')[1] + '&user_id=' + userID,
-                            }).then(res => {return res.text()});
-                            if(tempData.includes("You have successfully joined the battle.") || tempData.includes("You are already part of this battle.")){
-                                let status = await preciseDamage(parseInt(monster.querySelector('a').href.split('id=')[1]));
-                                setEnemyStatusToFalse(monster.querySelector('h3').innerText.trim());
-                                console.log((status == true) ? "Precise Damage have been dealt to " + monster.querySelector('h3').innerText.trim() : "")
-                            }
+                        if (getEnemyStatus(monster.querySelector('h3').innerText.trim()) && monster.querySelector(":nth-child(7)").innerText.includes("Join the Battle")){
+                            await new Promise(resolve => setTimeout(async ()=>{
+                                let tempData = await fetch('https://demonicscans.org/user_join_battle.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                    body: 'monster_id=' + monsterId + '&user_id=' + userID,
+                                }).then(res => {return res.text()});
+                                //console.log(tempData);
+                                if(tempData.includes("You have successfully joined the battle.") || tempData.includes("You are already part of this battle.")){
+                                    let status = await preciseDamage(parseInt(monsterId));
+                                    //setEnemyStatusToFalse(monster.querySelector('h3').innerText.trim());
+                                    console.log((status == true) ? "Precise Damage have been dealt to " + monster.querySelector('h3').innerText.trim() : "")
+                                } else if (tempData.includes("You can only join 3 monsters at a time.")){
+                                    //console.log("waiting");
+                                }
+                            }, 1000));
                         }
                     } else if (monster.querySelector(':nth-child(7)').innerText.includes("Continue the Battle")) {
                         activeMonsters.push({
-                            id: monster.querySelector('a').href.split('id=')[1],
+                            id: monsterId,
                             name: monster.querySelector('h3').innerText,
                             image: monster.querySelector('img').src,
                             action: monster.querySelector(":nth-child(7)").innerText,
@@ -837,25 +833,28 @@
                 };
 
                 // Process grayscale monsters (loot monsters)
-                doc.querySelectorAll('img.monster-img.grayscale').forEach((el) => {
+                doc.querySelectorAll('img.monster-img.grayscale').forEach(async (el) => {
                     let monster = el.parentElement;
                     let monsterHP = monster.querySelector(':nth-child(4)').textContent.split(' ');
                     let monsterPlayers = parseInt(monster.querySelector(':nth-child(5)').textContent.split(' ')[3].split('/')[0]);
 
                     if (monster.querySelector(':nth-child(7)') != null){
-                        if (monster.querySelector(':nth-child(7)').innerText.includes("Loot") && position >= allCards.indexOf(monster) + 1) {
-                            fetch("https://demonicscans.org/loot.php", {
+                        let monsterId = monster.querySelector('a').href.split('id=')[1];
+                        if (monster.querySelector(':nth-child(7)').innerText.includes("Loot") && (position >= allCards.indexOf(monster) + 1) && (ignoreList.includes(monsterId) == false) ) {
+                            await fetch("https://demonicscans.org/loot.php", {
                                 "headers": {
                                     "content-type": "application/x-www-form-urlencoded",
                                 },
-                                "referrer": "https://demonicscans.org/battle.php?id=" + monster.querySelector('a').href.split('id=')[1],
-                                "body": "monster_id=" + monster.querySelector('a').href.split('id=')[1] + "&user_id="+ userID,
+                                "referrer": "https://demonicscans.org/battle.php?id=" + monsterId,
+                                "body": "monster_id=" + monsterId + "&user_id="+ userID,
                                 "method": "POST",
-                                "mode": "cors",
-                                "credentials": "include"
+                            }).then(res => res.json()).then(data => {
+                                if(data.message.includes('You already claimed your loot.')){
+                                    ignoreList.push(monsterId);
+                                }
                             });
                             lootMonsters.push({
-                                id: monster.querySelector('a').href.split('id=')[1],
+                                id: monsterId,
                                 name: monster.querySelector('h3').innerText,
                                 image: monster.querySelector('img').src,
                                 action: monster.querySelector(":nth-child(7)").innerText,
@@ -882,6 +881,54 @@
                     let monsterDiv = `<div class="monster-card"> <img src="${monster.image}" class="monster-img ${(monster.action.includes('Loot')) ? 'grayscale' : '' }"alt="Monster"> <h3>${monster.name}</h3><div class="hp-bar"><div class="hp-fill" style="width:${(monster.HP_Cur == 0) ? 0 : (parseFloat(monster.HP_Cur.replaceAll(',', '')/monster.HP_Max.replaceAll(',', '')) ) * 100}%"></div></div> <div>❤️ ${monster.HP_Cur} / ${monster.HP_Max} HP</div><div>👥 Players Joined ${monster.Players_Cur}/${monster.Players_Max}</div><br> <a href="battle.php?id=${monster.id}"><button class="join-btn" ${(monster.action.includes('Continue the Battle')) ? 'style="background:#e67e22;"' : ''}>${monster.action}</button></a></div>`;
                     monstersHTML += monsterDiv;
                 })
+
+                document.querySelector('.gtb-inner').innerHTML = doc.querySelector('.gtb-inner').innerHTML;
+                (function() {
+                    // Get the current time in IST (UTC+5:30)
+                    const now = new Date();
+                    const utcOffset = now.getTimezoneOffset() * 60 * 1000;
+                    const istOffset = 5.5 * 60 * 60 * 1000;
+                    const istTime = new Date(now.getTime() + utcOffset + istOffset);
+
+                    // Calculate seconds until next full hour in IST
+                    const currentMinutes = istTime.getMinutes();
+                    const currentSeconds = istTime.getSeconds();
+                    const secsUntilNextHour = (59 - currentMinutes) * 60 + (60 - currentSeconds);
+
+                    let secs = secsUntilNextHour;
+                    const tEl = document.getElementById('stamina_timer');
+
+                    function mmss(total) {
+                        const m = Math.floor(total / 60);
+                        const s = total % 60;
+                        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+                    }
+
+                    function tick() {
+                        tEl.textContent = '⏳ ' + mmss(secs);
+
+                        if (secs <= 0) {
+                            // Reset timer for the next hour
+                            secs = 3600;
+                        }
+                        secs--;
+                    }
+
+                    // Initial update
+                    tick();
+
+                    // Set up the interval
+                    setInterval(tick, 1000);
+                })();
+
+                if (document.getElementById('stamina_span').innerText.includes('0')) {
+                    let temptargetStaminaValue = parseInt(targetInput.value);
+                    targetInput.value = 2;
+                    document.getElementById('stamina-button').click();
+                    targetInput.value = temptargetStaminaValue;
+                } else {
+                    console.log("Restoring some stamina");
+                }
 
                 monsterContainer.innerHTML = monstersHTML;
                 monsterContainer.querySelectorAll('.join-btn').forEach((el) => {
