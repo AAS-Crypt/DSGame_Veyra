@@ -840,7 +840,6 @@
                                 Players_Max: 20
                             });
                             if (getEnemyStatus(monster.querySelector('h3').innerText.trim()) && monster.querySelector(":nth-child(7)").innerText.includes("Join the Battle")){
-
                                     let tempData = await fetch('https://demonicscans.org/user_join_battle.php', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -851,6 +850,7 @@
                                         let status = await preciseDamage(parseInt(monsterId));
                                         //setEnemyStatusToFalse(monster.querySelector('h3').innerText.trim());
                                         console.log((status == true) ? "Precise Damage have been dealt to " + monster.querySelector('h3').innerText.trim() : "")
+                                    await new Promise(resolve => setTimeout(resolve, 1000 * 3));
                                     } else if (tempData.includes("You can only join 3 monsters at a time.")){
                                         //console.log("waiting");
                                     }
