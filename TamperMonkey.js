@@ -8,6 +8,11 @@
 // @grant        none
 // ==/UserScript==
 
+/*
+
+*/
+
+
 (function() {
     'use strict';
     if(localStorage.getItem('game.styles') == null){
@@ -35,10 +40,6 @@
     if(localStorage.getItem('dailyStamina') == null){
         localStorage.setItem('dailyStamina', 0);
     }
-    if(localStorage.getItem('enemy-targets') == null){
-        localStorage.setItem('enemy-targets', 'false,false,false,false,false')
-    }
-    let tempArray = localStorage.getItem('enemy-targets');
 
     let dailyStamina = parseInt(localStorage.getItem('dailyStamina'));
     let reactID = getCookieByName('useruid');
@@ -47,40 +48,14 @@
 
     const enemies = ['Goblin Slinger', 'Goblin Skirmisher', 'Orc Grunt', 'Orc Bonecrusher', 'Hobgoblin Spearman', 'Troll Ravager', 'Lizardman Flamecaster', 'Lizardman Shadowclaw', 'Troll Brawler'];
 
-    function getEnemyStatus(targetName) {
-        const booleanValues = tempArray.split(',').map(val => val.toLowerCase() === 'true');
-        const index = enemies.indexOf(targetName);
-        if (index === -1) {
-            return null;
-        }
-        return booleanValues[index];
-    }
-
-
-    function setEnemyStatusToFalse(targetName) {
-        const index = enemies.indexOf(targetName);
-        if (index === -1) {
-            return null;
-        }
-
-        // Split, modify, and update
-        tempArray = tempArray.split(',');
-        tempArray[index] = 'false';
-        document.getElementById('enemy-target-'+index).checked = false;
-        tempArray = tempArray.join(',');
-
-        // Save to localStorage
-        localStorage.setItem('enemy-targets', tempArray);
-
-        return tempArray;
-    }
-
     let url = document.location.href;
     const currentUrl = new URL(url);
     const currentPath = currentUrl.pathname;
 
     const allowedPaths = [
         '/game_dash.php',
+        '/pvparena.php',
+        '/monsterwiki.php',
         '/active_wave.php',
         '/battle.php',
         '/user_join_battle.php',
@@ -121,9 +96,335 @@
         xmlhttp.open("POST","updatechat.php",true);
         xmlhttp.send();
     }
-    //if (document.location.href.includes("https://demonicscans.org/active_wave.php") ? document.querySelector('.monster-container').innerHTML = ""; : return null
+    if (document.location.href.includes("https://demonicscans.org/active_wave.php")){
+        document.querySelector('.monster-container').innerHTML = "";
+    } 
+    
     if (allowedPaths.includes(currentPath)) {
         window.addEventListener('load', async function() {
+            if (document.location.href == ("https://demonicscans.org/pvparena.php")) {
+                fetch('')
+            } else if (document.location.href == ("https://demonicscans.org/monsterwiki.php")) {
+                let status = await fetch('https://demonicscans.org/stats.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                })
+                    .then(response => response.text())
+                    .then(html => {
+                    let parser = new DOMParser();
+                    return parser.parseFromString(html, 'text/html');
+                });
+                console.log(status.querySelector('body > style').outerHTML);
+                document.head.innerHTML = `<style>
+                                            body{background:#12131A;color:#EDEFF6;font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:0}
+                                            .wrap{max-width:1100px;margin:0 auto;padding:16px}
+                                            .btn{padding:8px 12px;background:#2A2B3A;color:#EDEFF6;border:none;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}
+                                            .btn:hover{background:#34364A}
+                                            .panel{background:#1A1B25;border:1px solid #232437;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.35);padding:18px;margin:16px 0}
+                                            .title{margin:8px 0 12px;font-size:28px;color:#FFD369;text-align:center}
+                                            .toc{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+                                            .toc a{background:#171923;border:1px solid #2B2D44;border-radius:8px;padding:8px 10px;color:#EDEFF6;text-decoration:none}
+                                            .toc a:hover{background:#202235}
+                                            h2{margin:18px 0 8px;color:#FFD369}
+                                            h3{margin:16px 0 6px;color:#EDEFF6}
+                                            p{line-height:1.6;color:#C8CCE8;margin:6px 0}
+                                            ul{margin:8px 0 14px 18px}
+                                            code, .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+                                            .note{background:#171923;border:1px solid #2B2D44;border-radius:8px;padding:10px;margin:10px 0;color:#D7DAF7}
+                                            .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+                                            .card{background:#171923;border:1px solid #2B2D44;border-radius:10px;padding:12px}
+                                            .muted{color:#9aa0be}
+                                          </style>`;
+                document.head.innerHTML += status.querySelector('head > style').outerHTML;
+                document.head.innerHTML += status.querySelector('body > style').outerHTML;
+                document.body.innerHTML = status.querySelector('.game-topbar').outerHTML;
+
+                (function(){
+                    let secs = 3272;
+                    const refillAmt = 20;
+                    const maxStam = 20;
+
+                    const tEl = document.getElementById('stamina_timer');
+                    const sEl = document.getElementById('stamina_span');
+
+                    function fmt(n){ return n.toLocaleString(); }
+                    function mmss(total){
+                        const m = Math.floor(total / 60);
+                        const s = total % 60;
+                        return (m<10?'0':'')+m+':' + (s<10?'0':'')+s;
+                    }
+
+                    function tick(){
+                        tEl.textContent = '⏳ ' + mmss(secs);
+
+                        if (secs <= 0){
+                            // Apply +10 stamina visually (server already did at HH:00:00)
+                            const current = parseInt((sEl.textContent || '0').replace(/[^0-9]/g,''), 10) || 0;
+                            const next = Math.min(maxStam, current + refillAmt);
+                            if (next !== current){
+                                sEl.textContent = fmt(next);
+                            }
+                            secs = 3600;
+                        }
+                        secs--;
+                    }
+
+                    tick();
+                    setInterval(tick, 1000);
+                })();
+
+document.head.innerHTML +=`
+<style>.monster-header img {object-fit: fill; width:100%}.monster-loot img {object-fit: fill; width:45%} body{background:#12131a;color:#edeff6;font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:0}.wrap{max-width:1100px;margin:0 auto;padding:16px}.btn{padding:8px 12px;background:#2a2b3a;color:#edeff6;border:none;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}.btn:hover{background:#34364a}.panel{background:#1a1b25;border:1px solid #232437;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.35);padding:18px;margin:16px 0}.title{margin:8px 0 12px;font-size:28px;color:#ffd369;text-align:center}.toc{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.toc a{background:#171923;border:1px solid #2b2d44;border-radius:8px;padding:8px 10px;color:#edeff6;text-decoration:none}.toc a:hover{background:#202235}h2{margin:18px 0 8px;color:#ffd369}h3{margin:16px 0 6px;color:#edeff6}p{line-height:1.6;color:#c8cce8;margin:6px 0}ul{margin:8px 0 14px 18px}.mono,code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}.note{background:#171923;border:1px solid #2b2d44;border-radius:8px;padding:10px;margin:10px 0;color:#d7daf7}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.card{background:#171923;border:1px solid #2b2d44;border-radius:10px;padding:12px}.muted{color:#9aa0be}.wave-header{background:linear-gradient(to right,#2a2b3a,#34364a);color:#ffd369;padding:15px 20px;border-radius:12px;margin:30px 0 20px;display:flex;justify-content:space-between;align-items:center}.wave-title{font-size:24px;font-weight:700}.wave-level{background-color:#ffd369;color:#12131a;padding:5px 15px;border-radius:20px;font-weight:600}.monsters-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:20px;margin-bottom:40px}.monster-card{background:#1a1b25;border:1px solid #232437;border-radius:12px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.35)}.monster-header{position:relative;background-color:#2a2b3a;color:#edeff6;padding:15px;border-bottom:1px solid #232437}.monster-name{font-size:2.5vh;font-weight:600;margin-bottom:5px;color:#ffd369;position:absolute;bottom:20%;left:8%;text-shadow:0 0 20px black;}.monster-stats{margin:10px 0;font-size:2vh;color:#c8cce8;position:absolute;bottom:4%;left:8%;text-shadow:0 0 7px black;}.hp-bar{height:10px;background-color:#171923;border-radius:5px;overflow:hidden;margin:10px 0}.hp-fill{height:100%;background:linear-gradient(to right,#4caf50,#8bc34a);border-radius:5px}.monster-actions{padding:10px 15px;background-color:#171923;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #232437}.monster-loot{padding:15px}.loot-title{font-weight:700;margin-bottom:10px;color:#ffd369}.loot-item{padding:10px;border-bottom:1px solid #232437;display:flex;justify-content:space-between;align-items:center}.loot-rarity{font-weight:600;padding:2px 8px;border-radius:4px;font-size:12px;flex-shrink:0;margin-right:10px}.legendary{background-color:gold;color:#856404}.epic{background-color:#9370db;color:#fff}.rare{background-color:#007bff;color:#fff}.common{background-color:#6c757d;color:#fff}.loot-info{flex-grow:1}.loot-name{font-weight:600;color:#edeff6}.loot-desc{font-size:12px;color:#9aa0be;margin-top:3px}.loot-stats{text-align:right;font-size:12px;color:#c8cce8;flex-shrink:0;margin-left:10px}.locked{opacity:.7;position:relative}.locked::after{content:"🔒";position:absolute;right:10px;top:50%;transform:translateY(-50%)}@media (max-width:768px){.monsters-grid{grid-template-columns:1fr}.wave-header{flex-direction:column;gap:10px;text-align:center}}</style>
+`;
+                function createWaveMonstersInfo(){
+                    let waves = [{num : 1, req : 1},{num:2, req:50}];
+                    let monsterEntities = [{
+                        wave : 1,
+                        name : "Goblin Skirmisher",
+                        img : "https://demonicscans.org/images/monsters/monster_689bea482aecd5.59004851.webp",
+                        maxHP : "1,100,000",
+                        maxPC : 20,
+                        loot : [
+                            {
+                                name : "Goblin Essence",
+                                desc : "A swirling green vial containing the raw life force of a goblin. It smells faintly of moss and iron, and hums with chaotic energy.",
+                                img : "https://demonicscans.org/images/items/1755224465_Goblin%20Essence.webp",
+                                dropRate : "6%",
+                                damageReq : "70,000",
+                                rarity : {
+                                    name : "Legendary",
+                                    background : "#ffd86a",
+                                }
+                            },{
+                                name : "Goblin Ear",
+                                desc : "A grisly trophy favored by bountry hunters in Veyra.",
+                                img : "https://demonicscans.org/images/items/1755224533_Goblin%20ears.webp",
+                                dropRate : "30%",
+                                damageReq : "15,000",
+                                rarity : {
+                                    name : "Rare",
+                                    background : "#6ac3ff",
+                                }
+                            },{
+                                name : "Rusty Shortsword",
+                                desc : "A dull, pitted blade stolen from some unlucky traveler. Barely sharp, but quick to wield..",
+                                img : "https://demonicscans.org/images/items/1755223589_rusty_shortsword.webp",
+                                dropRate : "90%",
+                                damageReq : "10,000",
+                                rarity : {
+                                    name : "Common",
+                                    background : "#cfd4ff",
+                                }
+                            }
+                        ]
+                    }]
+                    waves.forEach(wave => {
+                        let wavesDIV = document.createElement('div');
+                        wavesDIV.id = 'waves';
+                        wavesDIV.classList = 'panel';
+                        wavesDIV.innerHTML = `<h2>Monster Waves</h2><p>Monsters are organized into waves with increasing difficulty. Higher waves require higher levels and offer better rewards.</p>`;
+                        wavesDIV.innerHTML += `<!-- Wave ${wave.num} --><div class="wave-header"><div class="wave-title">🌊 WAVE ${wave.num}</div><div class="wave-level">Required Level: ${wave.req}</div></div>`;
+
+                        let monstersGRID = document.createElement('div');
+                        monstersGRID.classList = 'monsters-grid';
+                        monsterEntities.forEach(monster => {
+                            monstersGRID.innerHTML += `<!-- ${monster.name} -->`;
+                            let monsterCARD = document.createElement('div');
+                            monsterCARD.classList = 'monster-card';
+
+                            let monsterHEADER = document.createElement('div');
+                            monsterHEADER.classList = 'monster-header';
+                            monsterHEADER.innerHTML += `<img src="${monster.img}" alt="${monster.name}"><div class="monster-name">${monster.name}</div><div class=monster-stats><span>❤️ Maximum HP : ${monster.maxHP} </span><br><span>👥 Maximum Players : ${monster.maxPC} </span></div>`;
+
+                            let monsterLOOT = document.createElement('div');
+                            monsterLOOT.classList = 'monster-loot';
+                            monsterLOOT.innerHTML += `<div class="monster-loot"><div class="loot-title">🎁 Possible Loot</div>`;
+                            monster.loot.forEach(loot =>{
+                                monsterLOOT.innerHTML +=
+                                `<div class="loot-item">
+                                 <img src="${loot.img}" alt="${loot.name}">
+                                 <span class="loot-rarity ${loot.rarity.name.toLowerCase()}" style="background:${loot.rarity.background}!important">${loot.rarity.name.toUpperCase()}</span>
+                                 <div class="loot-info"><div class="loot-name">${loot.name}</div><div class="loot-desc">${loot.desc}</div></div>
+                                 <div class="loot-stats"><div>Drop: ${loot.dropRate}</div>
+                                 <div>DMG req: ${loot.damageReq}</div></div>
+                                </div>`
+                            });
+                            monsterLOOT.innerHTML += `</div>`;
+                            monsterCARD.appendChild(monsterHEADER);
+                            monsterCARD.appendChild(monsterLOOT);
+                            monstersGRID.appendChild(monsterCARD);
+                        });
+                        wavesDIV.appendChild(monstersGRID);
+                        document.querySelector('div#waves.panel').innerHTML = wavesDIV.innerHTML;
+                    });
+                }
+document.body.innerHTML += `
+<div class="wrap">
+ <div style="margin: 8px 0 16px;">
+  <a href="game_dash.php" class="btn" style="text-decoration:none;">⬅ Back to Dashboard</a>
+ </div>
+ <div class="panel">
+  <div class="title">📖 Monster Wiki</div>
+  <p class="muted" style="text-align:center;">Everything you need to know about Monsters</p>
+  <div class="toc">
+   <a href="#getting-started">Getting Started</a>
+   <a href="#waves">Waves</a>
+   <a href="#combat">Combat & Damage</a>
+   <a href="#loot">Loot & Drops</a>
+   <a href="#pets">Pets</a>
+   <a href="#stamina">Stamina</a>
+   <a href="#weekly">Weekly Leaderboard & Rewards</a>
+   <a href="#tips">Tips</a>
+  </div>
+ </div>
+ <div id="getting-started" class="panel">
+  <h2>Getting Started</h2>
+  <div class="grid">
+   <div class="card">
+    <h3>1) Find a Gate</h3>
+    <p>Head to an active gate, open its current <em>wave</em>, and pick a monster. </p>
+   </div>
+   <div class="card">
+    <h3>2) Join the Battle</h3>
+    <p>Click <span class="mono">⚔️ Join the Battle</span> to enter. If you've already joined, you'll see <span class="mono">🟠 Continue the Battle</span>. If a monster is full, you'll see <span class="mono">Full</span> unless you're already in that fight. </p>
+   </div>
+   <div class="card">
+    <h3>3) Attack</h3>
+    <p>Spend stamina to use a basic attack or a class skill. Each hit contributes to your total damage.</p>
+   </div>
+   <div class="card">
+    <h3>4) Loot</h3>
+    <p>When the monster dies, players who joined can click <span class="mono">💰 Loot</span> on that monster. If you didn't join, the loot button won't appear. If you already looted, it also won't appear. </p>
+   </div>
+  </div>
+  <div class="note">If there are no living monsters left in a wave, the system automatically spawns the next set for that wave.</div>
+ </div>
+ <div id="waves" class="panel">
+ </div>
+ <div id="combat" class="panel">
+  <h2>Combat & Damage</h2>
+  <p>Your damage per hit is influenced by your stats, equipped items, equipped pets, and any skill used.</p>
+  <h3>Damage Formula (overview)</h3>
+  <p class="mono">base = 225 + (itemsATK × 15) + (petsATK × 10) + skillDamage + 1000 × max(0, (UserATK − MonsterDEF))^0.25</p>
+  <ul>
+   <li>If your <span class="mono">UserATK < MonsterDEF </span>, damage is <strong>0</strong>. </li>
+   <li>After base is computed, a <strong>damage multiplier</strong> from certain pet powers is applied. </li>
+   <li>
+    <strong>Criticals:</strong> Some pets raise crit chance or crit damage. On crit, damage is multiplied further.
+   </li>
+  </ul>
+  <h3>What contributes to ATK?</h3>
+  <ul>
+   <li>
+    <strong>Your ATTACK stat</strong> (from your user profile).
+   </li>
+   <li>
+    <strong>Equipped items</strong> (sum of equipped inventory attack values).
+   </li>
+   <li>
+    <strong>Equipped pets</strong> (sum of pets' ATTACK).
+   </li>
+   <li>
+    <strong>Skill damage</strong> (varies per skill).
+   </li>
+  </ul>
+  <div class="note">Each attack consumes stamina and grants a small amount of XP. Level ups can refill stamina (details below).</div>
+ </div>
+ <div id="loot" class="panel">
+  <h2>Loot & Drops</h2>
+  <ul>
+   <li>You must have <strong>joined the battle</strong> before the monster died to be eligible for loot. </li>
+   <li>Eligible drops depend on your <strong>damage dealt</strong> meeting each item's <span class="mono">Damage Requirement</span>. </li>
+   <li>Each eligible item rolls against its <strong>DROP_RATIO</strong> (supports 0–1 or 0–100%). </li>
+   <li>Once you loot a dead monster, the button disappears for you.</li>
+   <li>On the monsters list, dead monsters you joined but <strong>haven't looted yet</strong> are moved to the top for visibility. </li>
+  </ul>
+  <h3>EXP & Gold from Kills</h3>
+  <p>When you loot, you also receive EXP and Gold scaled by your share of the boss's HP. These rewards are <strong>capped at 20%</strong> of the boss's base EXP/Gold values per player. </p>
+  <div class="note">Leveling up during loot processing grants stat points and may fully restore stamina if you were below max.</div>
+ </div>
+ <div id="pets" class="panel">
+  <h2>Pets</h2>
+  <p>Pets provide additional ATK, special powers, and can be leveled and promoted.</p>
+  <h3>Leveling</h3>
+  <ul>
+   <li>Feed pets with <strong>Pet Food</strong> to gain EXP. Each level increases pet ATK and sometimes power rates. </li>
+   <li>Pets can also <strong>evolve</strong> at certain levels, changing their stage art and granting extra bonuses. </li>
+  </ul>
+  <h3>Promotions (Stars)</h3>
+  <ul>
+   <li>Promote a pet by consuming <strong>copies</strong>. Copy requirements follow a Fibonacci-like curve (e.g., 1→2★ needs 1 copy, 2→3★ needs 2, … up to 7→8★ needs 21). </li>
+  </ul>
+  <h3>Pet Powers</h3>
+  <ul>
+   <li>
+    <strong>Power 1:</strong> Increases <em>crit rate</em>.
+   </li>
+   <li>
+    <strong>Power 2:</strong> Increases <em>crit damage</em>.
+   </li>
+   <li>
+    <strong>Power 3:</strong> Increases <em>overall damage multiplier</em>.
+   </li>
+  </ul>
+  <div class="note">Power tooltips display the current rate (e.g., "+15% crit chance") and update when your pet levels up.</div>
+ </div>
+ <div id="stamina" class="panel">
+  <h2>Stamina</h2>
+  <ul>
+   <li>Each attack consumes <strong>1 stamina</strong>. </li>
+   <li>
+    <strong>Level Up:</strong> If you level up and were below max, your stamina is fully restored.
+   </li>
+   <li>
+    <strong>Potions:</strong> Some items (e.g., Full Stamina Potion) restore stamina instantly.
+   </li>
+   <li>
+    <strong>Comments Bonus:</strong> Posting your <em>first</em> comment on a chapter awards <strong>+2 stamina</strong> (up to your Max Stamina). You'll see a notice when this triggers.
+   </li>
+   <li>
+    <strong>Daily Stamina Farming Cap:</strong> Stamina earned from "farming" sources (like reacting to chapters) is tracked and <strong>capped at 1000 per day</strong>.
+   </li>
+  </ul>
+  <div class="note">Stamina farming progress resets daily. Potion restores and level-up refills are not counted against the farming cap.</div>
+ </div>
+ <div id="weekly" class="panel">
+  <h2>Weekly Leaderboard & Rewards</h2>
+  <p>We rank players by total damage each ISO week (Mon–Sun). Top players earn rewards:</p>
+  <ul>
+   <li>
+    <strong>1st:</strong> 500 Gold, 2× Fenrir Eggs, 2× Full Stamina Potion
+   </li>
+   <li>
+    <strong>2nd–3rd:</strong> 300 Gold, 1× Fenrir Egg, 1× Full Stamina Potion
+   </li>
+   <li>
+    <strong>4th–10th:</strong> 200 Gold, 1× Full Stamina Potion
+   </li>
+   <li>
+    <strong>11th–50th:</strong> 100 Gold
+   </li>
+   <li>
+    <strong>51st–100th:</strong> 50 Gold
+   </li>
+  </ul>
+  <p class="muted">Rewards are granted after the week closes by an admin action.</p>
+ </div>
+ <div id="tips" class="panel">
+  <h2>Tips</h2>
+  <ul>
+   <li>Join battles early to qualify for drops. If you skip joining, the loot button won't appear for you.</li>
+   <li>Level pets and promote key ones for crit and multiplier boosts.</li>
+   <li>Keep an eye on stamina—use potions or level up to restore when needed.</li>
+   <li>Target monsters where your <span class="mono">ATTACK ≥ DEFENSE</span> for consistent damage. </li>
+  </ul>
+ </div>
+</div>
+`;
+                createWaveMonstersInfo();
+            }
             const staminaElement = document.querySelector('.gtb-value');
             if (!staminaElement) {
                 alert('Stamina element not found! Make sure you\'re on a page that displays stamina.');
@@ -193,7 +494,6 @@
                 container.style.cursor = 'move';
 
                 // Save position to localStorage
-                const rect = container.getBoundingClientRect();
                 const position = {
                     top: container.style.top,
                     left: container.style.left,
@@ -213,10 +513,53 @@
             title.style.color = '#ffdd00';
             container.appendChild(title);
 
+            console.log(this.document.location.href);
             if (document.location.href == "https://demonicscans.org/chat.php"){
                 clearInterval(t);
                 t=setInterval(updateChat,1000 * 2);
             } else if (document.location.href == "https://demonicscans.org/game_dash.php"){
+                let pvpArena = document.createElement('a');
+                pvpArena.href='pvparena.php';
+                pvpArena.classList='gate-link';
+
+                let pvpArena_div = document.createElement('div');
+                pvpArena_div.classList="gate-card";
+
+                let pvpArena_img = document.createElement('img');
+                pvpArena_img.src = "/images/events/goblin_fest/compressed_goblin_feast.webp";
+                pvpArena_img.alt = "Fight Players";
+                pvpArena_div.appendChild(pvpArena_img);
+                pvpArena_div.innerHTML += `<div class="gate-card-name">PvP Arena</div>`;
+
+                pvpArena.appendChild(pvpArena_div);
+                document.querySelectorAll('div.gates-flex')[0].appendChild(pvpArena);
+
+                let monsterWiki = document.createElement('a');
+                monsterWiki.href='monsterwiki.php';
+                monsterWiki.classList='gate-link';
+
+                let monsterWiki_div = document.createElement('div');
+                monsterWiki_div.classList="gate-card";
+
+                let monsterWiki_img = document.createElement('img');
+                monsterWiki_img.src = "https://upload.wikimedia.org/wikipedia/commons/c/c8/Black_W_for_promotion.png";
+                monsterWiki_img.style.objectFit = 'contain';
+                monsterWiki_img.style.background = '#b4e7ff';
+                monsterWiki_img.alt = "Monster WIKI";
+                monsterWiki_div.appendChild(monsterWiki_img);
+                monsterWiki_div.innerHTML += `<div class="gate-card-name">Monster WIKI</div>`;
+
+                monsterWiki.appendChild(monsterWiki_div);
+                document.querySelectorAll('div.gates-flex')[1].appendChild(monsterWiki);
+            } else if (document.location.href == ("https://demonicscans.org/pvparena.php")) {
+                alert(document.location.href);
+                alert("HEHEHE");
+                console.log('herrou');
+            } else if (document.location.href == ("https://demonicscans.org/monsterwiki.php")) {
+                //console.log("HHHH");
+                //alert(document.location.href);
+                //alert("HEHEHE");
+                console.log('herrou');
             } else if (document.location.href.includes("https://demonicscans.org/weekly.php") ||
                        document.location.href.includes("https://demonicscans.org/event_goblin_feast.php")){
                 let findMe = document.querySelector('a[href="player.php?pid=73553"]').parentElement.parentElement;
@@ -257,9 +600,8 @@
                 container.appendChild(findMeDIV);
 
                 document.body.appendChild(container);
-            }
-            else if (document.location.href.includes("https://demonicscans.org/active_wave.php") ||
-                document.location.href.includes("https://demonicscans.org/battle.php") ){
+            } else if (document.location.href.includes("https://demonicscans.org/active_wave.php") || 
+                       document.location.href.includes("https://demonicscans.org/battle.php") ){
                 // Create target stamina input
                 const targetContainer = document.createElement('div');
                 targetContainer.style.marginBottom = '10px';
@@ -358,7 +700,6 @@
                             alert('Could not parse stamina values!');
                             return;
                         }
-
 
                         // Calculate available stamina (difference)
                         const staminaDifference = maxStamina - currentStamina;
@@ -466,202 +807,30 @@
 
                 // Add button to container
                 container.appendChild(button);
-
-
-                const fullAttack = document.createElement('button');
-                fullAttack.innerHTML = 'Using ALL STAMINA';
-                fullAttack.style.padding = '8px 12px';
-                fullAttack.style.backgroundColor = '#ff0000';
-                fullAttack.style.color = 'white';
-                fullAttack.style.border = 'none';
-                fullAttack.style.borderRadius = '4px';
-                fullAttack.style.cursor = 'pointer';
-                fullAttack.style.fontSize = '12px';
-                fullAttack.style.marginTop = '10px';
-                fullAttack.style.marginBottom = '10px';
-                fullAttack.style.width = '100%';
-                fullAttack.addEventListener('click', ()=>{
-                    let tempID = parseInt(document.location.href.split('id=')[1]);
-                    console.log(tempID);
-                    fullDamage(tempID);
-                });
-                container.appendChild(fullAttack);
-
-                // Create target stamina input
-                const damageContainer = document.createElement('div');
-                targetContainer.style.marginBottom = '10px';
-
-                const damageLabel = document.createElement('label');
-                damageLabel.textContent = 'Damage to deal:';
-                damageLabel.style.display = 'block';
-                damageLabel.style.marginBottom = '5px';
-                damageLabel.style.fontWeight = 'bold';
-                damageLabel.style.color = '#ffdd00';
-                damageContainer.appendChild(damageLabel);
-
-                const damageInput = document.createElement('input');
-                damageInput.type = 'number';
-                damageInput.id = 'damage-target';
-                damageInput.value = parseInt(localStorage.getItem('lastDamage')) || 71000;
-                damageInput.min = '1000';
-                damageInput.step = '100';
-                damageInput.style.width = 'auto';
-                damageInput.style.padding = '8px';
-                damageInput.style.border = '1px solid #ccc';
-                damageInput.style.borderRadius = '4px';
-                damageInput.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                damageInput.style.color = 'white';
-                damageInput.addEventListener('change', function(){
-                    localStorage.setItem('lastDamage', this.value);
-                    preciseAttack.innerHTML = 'Making ' + formatNumberCompact(this.value) + ' DMG';
-                });
-                damageContainer.appendChild(damageInput);
-
-                container.appendChild(damageContainer);
-
-                const preciseAttack = document.createElement('button');
-                preciseAttack.innerHTML = `Making ${formatNumberCompact(parseInt(localStorage.getItem('lastDamage')))} DMG`;
-                preciseAttack.style.padding = '8px 12px';
-                preciseAttack.style.backgroundColor = '#990099';
-                preciseAttack.style.color = 'white';
-                preciseAttack.style.border = 'none';
-                preciseAttack.style.borderRadius = '4px';
-                preciseAttack.style.cursor = 'pointer';
-                preciseAttack.style.fontSize = '12px';
-                preciseAttack.style.marginTop = '10px';
-                preciseAttack.style.marginBottom = '10px';
-                preciseAttack.style.width = '100%';
-                preciseAttack.addEventListener('click', () => {preciseDamage(document.location.href.split("id=")[1]);});
-                container.appendChild(preciseAttack);
-
+                
                 document.body.appendChild(container);
-
                 // Target Inputs and check boxes
-                // Create target stamina input
-                const markingContainer = document.createElement('div');
-                markingContainer.style.display = 'flex';
-                markingContainer.style.flexWrap = 'wrap';
-                markingContainer.style.marginTop = '10px';
-                markingContainer.style.marginBottom = '10px';
-
+                // Create target stamina input 
                 if (document.location.href.includes("https://demonicscans.org/active_wave.php")){
                     renderMonsters(document.querySelector('.wave-chip.active').href.split('php')[1])
-                    t=setInterval(function(){renderMonsters(document.querySelector('.wave-chip.active').href.split('php')[1])}, 1000 * 3);
-
-                    let boxDiv;
-                    enemies.forEach(function(entity, index) {
-                        boxDiv = document.createElement('div');
-                        boxDiv.style.display = 'flex';
-                        let markCheckBox = document.createElement('input');
-                        markCheckBox.type = 'checkbox';
-                        markCheckBox.id = 'enemy-target-' + index;
-                        markCheckBox.checked = tempArray.split(',')[index] === 'true';
-                        markCheckBox.value = tempArray.split(',')[index];
-                        markCheckBox.style.padding = '8px';
-                        markCheckBox.style.border = '1px solid #ccc';
-                        markCheckBox.style.borderRadius = '4px';
-                        markCheckBox.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                        markCheckBox.style.color = 'white';
-                        markCheckBox.addEventListener('change', function(e){
-                            tempArray = tempArray.split(',');
-                            tempArray[index] = e.target.checked.toString();
-                            tempArray = tempArray.join(',');
-                            localStorage.setItem('enemy-targets', tempArray);
-                        });
-                        boxDiv.appendChild(markCheckBox);
-
-                        const markLabel = document.createElement('label');
-                        markLabel.textContent = entity;
-                        markLabel.style.width = 'auto';
-                        markLabel.style.display = 'block';
-                        markLabel.style.marginBottom = '5px';
-                        markLabel.style.fontWeight = 'bold';
-                        markLabel.style.color = '#ffdd00';
-                        boxDiv.appendChild(markLabel);
-                        markingContainer.appendChild(boxDiv);
-                    })
-                    container.appendChild(markingContainer);
+                    // t = setInterval(function(){renderMonsters(document.querySelector('.wave-chip.active').href.split('php')[1])}, 1000 * 3);
                 }
 
-
-                function formatNumberCompact(num) {
-                    if (num >= 1000000) {
-                        return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-                    } else if (num >= 1000) {
-                        return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-                    }
-                    return num.toString();
+                function getRandomDelay(minMs, maxMs) {
+                    return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
                 }
 
-                async function fullDamage(monsterID = 0) {
-                    try {
-                        for (let index = 0; index < currentStamina; index++) {
-                            let status = await damage(monsterID);
-                            console.log(status);
-                        }
-                    } catch (error) {
-                        console.error('Error auto-detecting stamina:', error);
-                        alert('Error auto-detecting stamina. Check console for details.');
-                    }
-                    setTimeout(function() {
-                        if(document.location.href.includes("battle.php?id=")){
-                            document.location.href = document.location.href;
-                        }
-                    }, Math.max(1000, 1 * 100));
+                function sleep(ms) {
+                    return new Promise(resolve => setTimeout(resolve, ms));
                 }
-
-                async function preciseDamage(monsterID = 0) {
-                    let damageVAL = parseInt(document.getElementById('damage-target').value);
-                    let damageINT = damage(monsterID);
-                    let damageGOAL = damageVAL;
-                    while (damageVAL > 0 ) {
-                        if (damageVAL <= damageINT){
-                            console.log("Precise Damage have been dealt")
-                            return true;
-                            //return document.location.href = document.location.href;
-                        } else {
-                            damageVAL -= await damage(monsterID);
-                        }
-                        console.log(`Overall Damage have been dealt is : ${damageVAL}/${damageGOAL} | ID : ${monsterID}`)
-                    }
-                    setTimeout(function() {
-                        if(document.location.href.includes("battle.php?id=")){
-                            document.location.href = document.location.href;
-                        }
-                    }, Math.max(1000, 1 * 100));
-                }
-
-                async function damage(monsterID = 0) {
-                    return fetch('https://demonicscans.org/damage.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
-                    }).then(res => res.json())
-                        .then(data => {
-                        if (data.message.includes("You have dealt")){
-                            return parseInt(data.message.split('<strong>')[1].split('</strong>')[0].match(/[0-9]+/g).join(''));
-                        } else if (data.message.includes("Not enough stamina.") && (dailyStamina < dailyLimit)) {
-                            let temptargetStaminaValue = parseInt(targetInput.value);
-                            targetInput.value = 2;
-                            document.getElementById('stamina-button').click();
-                            targetInput.value = temptargetStaminaValue;
-                            return parseInt(0);
-                        } else if (data.message.includes("Monster is already dead")) {
-                            return parseInt(999999999);
-                        }
-                    });
-                }
-
-
+                
                 function getStamina(chapID = 0) {
                     return fetch('https://demonicscans.org/postreaction.php', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
-                        body: 'useruid=' + reactID + '&chapterid=' + chapID + '&reaction=1'
+                        body: 'useruid=' + reactID + '&chapterid=' + chapID + '&reaction=' + (Math.floor(Math.random() * 5) + 1),
                     })
                         .then(response => {
                         if (!response.ok) {
@@ -750,6 +919,7 @@
                         }
                         try {
                             const response = await getStamina(index);
+                            await sleep(getRandomDelay(1000,5000));
                             if (response && response.includes("added")) {
                                 staminaGained += 2;
                                 dailyStamina += 2;
@@ -793,7 +963,10 @@
                     minInput.value = newMinChapter;
                 }
 
-                async function renderMonsters(gateNumber = "?gate=3") {
+                async function renderMonsters(gateNumber = "?gate=3&wave=3") {
+                    if (document.location.href != gateNumber){
+                        gateNumber = document.location.href;
+                    }
                     let monsters = [];
                     let lootMonsters = [];
                     let activeMonsters = [];
@@ -831,22 +1004,6 @@
                                 Players_Cur: (monsterPlayers || 0),
                                 Players_Max: 20
                             });
-                            if (getEnemyStatus(monster.querySelector('h3').innerText.trim()) && monster.querySelector(":nth-child(7)").innerText.includes("Join the Battle")){
-                                let tempData = await fetch('https://demonicscans.org/user_join_battle.php', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                    body: 'monster_id=' + monsterId + '&user_id=' + userID,
-                                }).then(res => {return res.text()});
-                                //console.log(tempData);
-                                if(tempData.includes("You have successfully joined the battle.") || tempData.includes("You are already part of this battle.")){
-                                    let status = await preciseDamage(parseInt(monsterId));
-                                    //setEnemyStatusToFalse(monster.querySelector('h3').innerText.trim());
-                                    console.log((status == true) ? "Precise Damage have been dealt to " + monster.querySelector('h3').innerText.trim() : "")
-                                    await new Promise(resolve => setTimeout(resolve, 1000 * 3));
-                                } else if (tempData.includes("You can only join 3 monsters at a time.")){
-                                    //console.log("waiting");
-                                }
-                            }
                         } else if (monster.querySelector(':nth-child(7)').innerText.includes("Continue the Battle")) {
                             activeMonsters.push({
                                 id: monster.querySelector('a').href.split('id=')[1],
@@ -870,6 +1027,7 @@
                         if (monster.querySelector(':nth-child(7)') != null){
                             let monsterId = monster.querySelector('a').href.split('id=')[1];
                             if (monster.querySelector(':nth-child(7)').innerText.includes("Loot") && (position >= allCards.indexOf(monster) + 1) && (ignoreList.includes(monsterId) == false) ) {
+                                await sleep(getRandomDelay(1000,5000));
                                 await fetch("https://demonicscans.org/loot.php", {
                                     "headers": {
                                         "content-type": "application/x-www-form-urlencoded",
@@ -950,19 +1108,15 @@
                         setInterval(tick, 1000);
                     })();
 
-                    if (document.getElementById('stamina_span').innerText.includes('0') && (dailyStamina < dailyLimit)) {
-                        let temptargetStaminaValue = parseInt(targetInput.value);
-                        targetInput.value = 2;
-                        document.getElementById('stamina-button').click();
-                        targetInput.value = temptargetStaminaValue;
-                        console.log(`Recovered 2 stamina`);
-                    } else {
-                        console.log(`Current stamina is : ${document.getElementById('stamina_span').innerText}`);
-                    }
-
                     monsterContainer.innerHTML = monstersHTML;
                     monsterContainer.querySelectorAll('.join-btn').forEach((el) => {
                         if (el.innerText.includes("Join the Battle")) {
+                            el.parentElement.parentElement.children[0].addEventListener('click', function (){
+                                document.location.href = el.parentElement.href;
+                            });
+                            el.parentElement.parentElement.children[1].addEventListener('click', function (){
+                                document.location.href = el.parentElement.href;
+                            });
                             el.addEventListener('click', function(e) {
                                 e.preventDefault();
                                 e.stopPropagation();
