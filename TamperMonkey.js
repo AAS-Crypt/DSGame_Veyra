@@ -36,7 +36,7 @@
         localStorage.setItem('dailyStamina', 0);
     }
     if(localStorage.getItem('enemy-targets') == null){
-        localStorage.setItem('enemy-targets', 'false,false,false,false,false,false,false,false,false')
+        localStorage.setItem('enemy-targets', 'false,false,false,false,false')
     }
     let tempArray = localStorage.getItem('enemy-targets');
 
@@ -81,7 +81,6 @@
 
     const allowedPaths = [
         '/game_dash.php',
-        '/pvparena.php',
         '/active_wave.php',
         '/battle.php',
         '/user_join_battle.php',
@@ -124,10 +123,7 @@
     }
     //if (document.location.href.includes("https://demonicscans.org/active_wave.php") ? document.querySelector('.monster-container').innerHTML = ""; : return null
     if (allowedPaths.includes(currentPath)) {
-        window.addEventListener('load', function() {
-            if (document.location.href == ("https://demonicscans.org/pvparena.php")) {
-                //fetch('')
-            }
+        window.addEventListener('load', async function() {
             const staminaElement = document.querySelector('.gtb-value');
             if (!staminaElement) {
                 alert('Stamina element not found! Make sure you\'re on a page that displays stamina.');
@@ -221,25 +217,6 @@
                 clearInterval(t);
                 t=setInterval(updateChat,1000 * 2);
             } else if (document.location.href == "https://demonicscans.org/game_dash.php"){
-                let pvpArena = document.createElement('a');
-                pvpArena.href='pvparena.php';
-                pvpArena.classList='gate-link';
-
-                let pvpArena_div = document.createElement('div');
-                pvpArena_div.classList="gate-card";
-
-                let pvpArena_img = document.createElement('img');
-                pvpArena_img.src = "/images/events/goblin_fest/compressed_goblin_feast.webp";
-                pvpArena_img.alt = "Fight Players";
-                pvpArena_div.appendChild(pvpArena_img);
-                pvpArena_div.innerHTML += `<div class="gate-card-name">PvP Arena</div>`;
-
-                pvpArena.appendChild(pvpArena_div);
-                document.querySelector('.gates-flex').appendChild(pvpArena);
-            } else if (document.location.href == ("https://demonicscans.org/pvparena.php")) {
-                alert(document.location.href);
-                alert("HEHEHE");
-                console.log('herrou');
             } else if (document.location.href.includes("https://demonicscans.org/weekly.php") ||
                        document.location.href.includes("https://demonicscans.org/event_goblin_feast.php")){
                 let findMe = document.querySelector('a[href="player.php?pid=73553"]').parentElement.parentElement;
@@ -437,6 +414,7 @@
 
                 // Check if daily limit is reached and update button accordingly
                 function updateButtonState() {
+                    //console.log(`Local : ${dailyStamina} | Storage : ${localStorage.getItem('dailyStamina')}`);
                     if (dailyStamina >= dailyLimit) {
                         button.disabled = true;
                         button.style.backgroundColor = '#999';
@@ -461,23 +439,20 @@
                         midnightIST.setHours(24, 0, 0, 0);
 
                         const timeLeft = midnightIST - currentIST;
-                        if (timeLeft <= 60) {
+                        console.log(`Time until reset : ${parseInt(timeLeft/1000)}s`);
+                        if (timeLeft <= 6000) {
                             // Reset daily stamina at midnight
-                            //console.log("Reseting stamina");
-                            return setTimeout( () => {
-                                dailyStamina = 0;
-                                localStorage.setItem('dailyStamina', '0');
-                                updateButtonState();
-                            }, 1000 * 60)
+                            console.log("Reseting stamina, because there is 6 seconds left.");
+                            dailyStamina = 0;
+                            localStorage.setItem('dailyStamina', '0');
+                            updateButtonState();
+                        } else {
+                            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                            button.innerText = `Resets in: \r\n ${hours}h ${minutes}m ${seconds}s \r\n Daily Limit Reached`;
+                            setTimeout(updateCountdown, 1000);
                         }
-
-                        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-                        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-
-                        button.innerText = `Resets in: \r\n ${hours}h ${minutes}m ${seconds}s \r\n Daily Limit Reached`;
-
-                        setTimeout(updateCountdown, 1000);
                     }
 
                     updateCountdown();
@@ -637,25 +612,17 @@
 
                 async function preciseDamage(monsterID = 0) {
                     let damageVAL = parseInt(document.getElementById('damage-target').value);
-                    let tempData = await fetch('https://demonicscans.org/damage.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
-                    }).catch(function(error) {
-                        console.error('Error : ', error);
-                    }).then(response => {return response.json();});
-                    let damageINT = parseInt(tempData.message.split('<strong>')[1].split('</strong>')[0].replace(/,/g, ""));
-                    damageVAL -= damageINT;
+                    let damageINT = damage(monsterID);
+                    let damageGOAL = damageVAL;
                     while (damageVAL > 0 ) {
-                        if (damageVAL + damageINT <= damageINT){
+                        if (damageVAL <= damageINT){
                             console.log("Precise Damage have been dealt")
                             return true;
                             //return document.location.href = document.location.href;
                         } else {
                             damageVAL -= await damage(monsterID);
                         }
+                        console.log(`Overall Damage have been dealt is : ${damageVAL}/${damageGOAL} | ID : ${monsterID}`)
                     }
                     setTimeout(function() {
                         if(document.location.href.includes("battle.php?id=")){
@@ -673,9 +640,9 @@
                         body: 'user_id=' + userID + '&monster_id=' + monsterID + '&skill_id=0&stamina_cost=1'
                     }).then(res => res.json())
                         .then(data => {
-                        if(data.status == "success"){
+                        if (data.message.includes("You have dealt")){
                             return parseInt(data.message.split('<strong>')[1].split('</strong>')[0].match(/[0-9]+/g).join(''));
-                        } else if (data.message.includes("Not enough stamina.") ) {
+                        } else if (data.message.includes("Not enough stamina.") && (dailyStamina < dailyLimit)) {
                             let temptargetStaminaValue = parseInt(targetInput.value);
                             targetInput.value = 2;
                             document.getElementById('stamina-button').click();
@@ -983,13 +950,14 @@
                         setInterval(tick, 1000);
                     })();
 
-                    if (document.getElementById('stamina_span').innerText.includes('0')) {
+                    if (document.getElementById('stamina_span').innerText.includes('0') && (dailyStamina < dailyLimit)) {
                         let temptargetStaminaValue = parseInt(targetInput.value);
                         targetInput.value = 2;
                         document.getElementById('stamina-button').click();
                         targetInput.value = temptargetStaminaValue;
+                        console.log(`Recovered 2 stamina`);
                     } else {
-                        console.log("Restoring some stamina");
+                        console.log(`Current stamina is : ${document.getElementById('stamina_span').innerText}`);
                     }
 
                     monsterContainer.innerHTML = monstersHTML;
