@@ -813,7 +813,7 @@ document.body.innerHTML += `
                 // Create target stamina input 
                 if (document.location.href.includes("https://demonicscans.org/active_wave.php")){
                     renderMonsters(document.querySelector('.wave-chip.active').href.split('php')[1])
-                    // t = setInterval(function(){renderMonsters(document.querySelector('.wave-chip.active').href.split('php')[1])}, 1000 * 3);
+                    t = setInterval(function(){renderMonsters(document.querySelector('.wave-chip.active').href.split('php')[1])}, 1000 * 1);
                 }
 
                 function getRandomDelay(minMs, maxMs) {
@@ -965,7 +965,7 @@ document.body.innerHTML += `
 
                 async function renderMonsters(gateNumber = "?gate=3&wave=3") {
                     if (document.location.href != gateNumber){
-                        gateNumber = document.location.href;
+                        gateNumber = document.location.href.split('.php')[1];
                     }
                     let monsters = [];
                     let lootMonsters = [];
@@ -1117,13 +1117,14 @@ document.body.innerHTML += `
                             el.parentElement.parentElement.children[1].addEventListener('click', function (){
                                 document.location.href = el.parentElement.href;
                             });
-                            el.addEventListener('click', function(e) {
+                            el.addEventListener('click', async function(e) {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                fetch('https://demonicscans.org/user_join_battle.php', {
+                                await fetch('https://demonicscans.org/user_join_battle.php', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                                     body: 'monster_id=' + el.parentElement.href.split('=')[1] + '&user_id=' + userID,
+                                    referrer: el.parentElement.href,
                                 })
                                     .then(res => res.text())
                                     .then(data => {
